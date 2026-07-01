@@ -1,2 +1,2 @@
 # bootcamp-ace-26-team-6
-Bootcamp by ACE students Team 1
+Bootcamp by ACE students Team 6
