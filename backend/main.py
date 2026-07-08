@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.auth import get_current_user, router as auth_router
-from backend.db import insert, select, update
+from backend.db import insert, select, update, _raw_delete
 from backend.detector import annotate, detect
 
 app = FastAPI(title="PPE Compliance API", version="1.0")
@@ -31,11 +31,13 @@ app.include_router(auth_router)
 # ---------------------------------------------------------------------------
 class CameraCreate(BaseModel):
     name: str
+    site_id: str | None = None
 
 
 class CameraUpdate(BaseModel):
     name: str | None = None
     is_active: bool | None = None
+    site_id: str | None = None
 
 
 class DetectionCreate(BaseModel):
@@ -53,12 +55,48 @@ class EventCreate(BaseModel):
     detections: list[DetectionCreate] = []
 
 
+class SiteCreate(BaseModel):
+    name: str
+    location: str | None = None
+
+
+class SiteUpdate(BaseModel):
+    name: str | None = None
+    location: str | None = None
+
+
+class SettingsUpdate(BaseModel):
+    violation_class_ids: list[int] | None = None
+    alert_on_violation: bool | None = None
+    alert_on_fall: bool | None = None
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _get_user_settings(user_id: str) -> dict:
+    rows = select("user_settings", {"user_id": f"eq.{user_id}", "limit": "1"})
+    return rows[0] if rows else {}
+
+
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Auth / Me
+# ---------------------------------------------------------------------------
+@app.get("/auth/me")
+def auth_me(user=Depends(get_current_user)):
+    rows = select("users", {"id": f"eq.{user.id}", "limit": "1"})
+    if not rows:
+        raise HTTPException(404, "User not found")
+    u = rows[0]
+    return {"id": u["id"], "username": u["username"], "created_at": u["created_at"]}
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +111,11 @@ async def detect_endpoint(
     nparr = np.frombuffer(contents, np.uint8)
     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    result = detect(frame)
+    settings = _get_user_settings(user.id)
+    vids = settings.get("violation_class_ids")
+    violation_ids = set(vids) if vids else None
+
+    result = detect(frame, violation_ids)
     annotated = annotate(frame, result["detections"])
 
     _, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
@@ -83,17 +125,62 @@ async def detect_endpoint(
 
 
 # ---------------------------------------------------------------------------
+# Sites
+# ---------------------------------------------------------------------------
+@app.get("/sites")
+def list_sites(user=Depends(get_current_user)):
+    return select("sites", {"user_id": f"eq.{user.id}", "order": "name.asc"}) or []
+
+
+@app.post("/sites")
+def create_site(body: SiteCreate, user=Depends(get_current_user)):
+    try:
+        site = insert("sites", {"user_id": user.id, "name": body.name, "location": body.location})
+        return site[0]
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@app.patch("/sites/{site_id}")
+def update_site(site_id: str, body: SiteUpdate, user=Depends(get_current_user)):
+    data = body.model_dump(exclude_none=True)
+    if not data:
+        raise HTTPException(400, "No fields to update")
+    try:
+        r = update("sites", data, "id", site_id)
+        return r[0] if r else None
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/sites/{site_id}")
+def delete_site(site_id: str, user=Depends(get_current_user)):
+    try:
+        _raw_delete("sites", "id", site_id)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+# ---------------------------------------------------------------------------
 # Cameras
 # ---------------------------------------------------------------------------
 @app.get("/cameras")
-def list_cameras(user=Depends(get_current_user)):
-    return select("cameras", {"user_id": f"eq.{user.id}", "order": "created_at.desc"}) or []
+def list_cameras(site_id: str | None = None, user=Depends(get_current_user)):
+    params = {"user_id": f"eq.{user.id}", "order": "created_at.desc"}
+    if site_id:
+        params["site_id"] = f"eq.{site_id}"
+    return select("cameras", params) or []
 
 
 @app.post("/cameras")
 def create_camera(body: CameraCreate, user=Depends(get_current_user)):
     try:
-        cam = insert("cameras", {"user_id": user.id, "name": body.name})
+        cam = insert("cameras", {
+            "user_id": user.id,
+            "name": body.name,
+            "site_id": body.site_id,
+        })
         return cam[0]
     except Exception as e:
         raise HTTPException(400, str(e))
@@ -113,8 +200,6 @@ def update_camera(camera_id: str, body: CameraUpdate, user=Depends(get_current_u
 
 @app.delete("/cameras/{camera_id}")
 def delete_camera(camera_id: str, user=Depends(get_current_user)):
-    from backend.db import _raw_delete
-
     try:
         _raw_delete("cameras", "id", camera_id)
         return {"ok": True}
@@ -154,13 +239,25 @@ def create_event(body: EventCreate, user=Depends(get_current_user)):
                 "is_violation": det.is_violation,
             })
 
-        if body.event_type in ("violation", "fall"):
+        settings = _get_user_settings(user.id)
+        alert_violation = settings.get("alert_on_violation", True)
+        alert_fall = settings.get("alert_on_fall", True)
+
+        if body.event_type == "fall" and alert_fall:
             insert("alerts", {
                 "user_id": user.id,
                 "camera_id": body.camera_id,
                 "event_id": event_id,
-                "alert_type": body.event_type,
-                "message": f"{body.event_type} detected",
+                "alert_type": "fall",
+                "message": "Fall detected",
+            })
+        elif body.event_type == "violation" and alert_violation:
+            insert("alerts", {
+                "user_id": user.id,
+                "camera_id": body.camera_id,
+                "event_id": event_id,
+                "alert_type": "violation",
+                "message": "PPE violation detected",
             })
 
         return event
@@ -188,9 +285,7 @@ def get_event(event_id: str, user=Depends(get_current_user)):
     if not r:
         raise HTTPException(404, "Event not found")
     event = r[0]
-    event["detections"] = (
-        select("detections", {"event_id": f"eq.{event_id}"}) or []
-    )
+    event["detections"] = select("detections", {"event_id": f"eq.{event_id}"}) or []
     return event
 
 
@@ -254,5 +349,37 @@ def ack_alert(alert_id: str, user=Depends(get_current_user)):
         return r[0]
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+@app.get("/settings")
+def get_settings(user=Depends(get_current_user)):
+    s = _get_user_settings(user.id)
+    if not s:
+        insert("user_settings", {"user_id": user.id})
+        s = _get_user_settings(user.id)
+    return {
+        "violation_class_ids": s.get("violation_class_ids", [0, 6, 7, 8, 9, 10]),
+        "alert_on_violation": s.get("alert_on_violation", True),
+        "alert_on_fall": s.get("alert_on_fall", True),
+    }
+
+
+@app.patch("/settings")
+def update_settings(body: SettingsUpdate, user=Depends(get_current_user)):
+    existing = _get_user_settings(user.id)
+    if not existing:
+        insert("user_settings", {"user_id": user.id})
+
+    data = body.model_dump(exclude_none=True)
+    if not data:
+        raise HTTPException(400, "No fields to update")
+    try:
+        r = update("user_settings", data, "user_id", user.id)
+        return r[0] if r else None
     except Exception as e:
         raise HTTPException(400, str(e))

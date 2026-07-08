@@ -38,8 +38,9 @@ def _get_model():
     return _model
 
 
-def detect(frame: np.ndarray) -> dict:
+def detect(frame: np.ndarray, violation_ids: set | None = None) -> dict:
     model = _get_model()
+    violation_ids = violation_ids or VIOLATION_IDS
     results = model(frame, verbose=False)[0]
     detections = []
     has_fall = False
@@ -49,7 +50,7 @@ def detect(frame: np.ndarray) -> dict:
         cls_id = int(box.cls[0])
         x1, y1, x2, y2 = box.xyxy[0].tolist()
         conf = float(box.conf[0])
-        is_violation = cls_id in VIOLATION_IDS
+        is_violation = cls_id in violation_ids
 
         if cls_id == 0:
             has_fall = True
