@@ -5,6 +5,8 @@ __pycache__/
 .env
 *.egg-info/
 .vite/
+.venv/
 venv/
 *.pt
+runs/
 __pycache__/
