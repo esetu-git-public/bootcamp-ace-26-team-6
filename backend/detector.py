@@ -34,7 +34,7 @@ def _get_model():
         if os.path.exists(MODEL_PATH):
             _model = YOLO(MODEL_PATH)
         else:
-            _model = YOLO("yolov8n.pt")
+            _model = YOLO("last.pt")
     return _model
 
 
