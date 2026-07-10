@@ -5,6 +5,7 @@ from collections import Counter
 from datetime import datetime
 
 import cv2
+import httpx
 import numpy as np
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,13 +32,13 @@ app.include_router(auth_router)
 # ---------------------------------------------------------------------------
 class CameraCreate(BaseModel):
     name: str
-    site_id: str | None = None
+    stream_url: str
 
 
 class CameraUpdate(BaseModel):
     name: str | None = None
+    stream_url: str | None = None
     is_active: bool | None = None
-    site_id: str | None = None
 
 
 class DetectionCreate(BaseModel):
@@ -53,16 +54,6 @@ class EventCreate(BaseModel):
     event_type: str
     snapshot: str | None = None
     detections: list[DetectionCreate] = []
-
-
-class SiteCreate(BaseModel):
-    name: str
-    location: str | None = None
-
-
-class SiteUpdate(BaseModel):
-    name: str | None = None
-    location: str | None = None
 
 
 class SettingsUpdate(BaseModel):
@@ -124,53 +115,95 @@ async def detect_endpoint(
     return {**result, "annotated_image": annotated_b64}
 
 
-# ---------------------------------------------------------------------------
-# Sites
-# ---------------------------------------------------------------------------
-@app.get("/sites")
-def list_sites(user=Depends(get_current_user)):
-    return select("sites", {"user_id": f"eq.{user.id}", "order": "name.asc"}) or []
+@app.post("/detect/camera/{camera_id}")
+def detect_from_camera(camera_id: str, user=Depends(get_current_user)):
+    cams = select("cameras", {"id": f"eq.{camera_id}", "user_id": f"eq.{user.id}"})
+    if not cams:
+        raise HTTPException(404, "Camera not found")
+    cam = cams[0]
+    stream_url = cam.get("stream_url")
+    if not stream_url:
+        raise HTTPException(400, "Camera has no stream_url")
 
-
-@app.post("/sites")
-def create_site(body: SiteCreate, user=Depends(get_current_user)):
     try:
-        site = insert("sites", {"user_id": user.id, "name": body.name, "location": body.location})
-        return site[0]
-    except Exception as e:
-        raise HTTPException(400, str(e))
+        r = httpx.get(stream_url, timeout=10)
+        r.raise_for_status()
+        nparr = np.frombuffer(r.content, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is None:
+            raise HTTPException(502, "Failed to decode frame from stream_url")
+    except httpx.HTTPError:
+        raise HTTPException(502, "Failed to fetch frame from camera stream_url")
 
+    settings = _get_user_settings(user.id)
+    vids = settings.get("violation_class_ids")
+    violation_ids = set(vids) if vids else None
 
-@app.patch("/sites/{site_id}")
-def update_site(site_id: str, body: SiteUpdate, user=Depends(get_current_user)):
-    data = body.model_dump(exclude_none=True)
-    if not data:
-        raise HTTPException(400, "No fields to update")
-    try:
-        r = update("sites", data, "id", site_id)
-        return r[0] if r else None
-    except Exception as e:
-        raise HTTPException(400, str(e))
+    result = detect(frame, violation_ids)
+    annotated = annotate(frame, result["detections"])
 
+    _, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    annotated_b64 = base64.b64encode(buffer).decode()
 
-@app.delete("/sites/{site_id}")
-def delete_site(site_id: str, user=Depends(get_current_user)):
-    try:
-        _raw_delete("sites", "id", site_id)
-        return {"ok": True}
-    except Exception as e:
-        raise HTTPException(400, str(e))
+    # Auto-save event
+    event_row = {
+        "user_id": user.id,
+        "camera_id": camera_id,
+        "event_type": result["event_type"],
+        "snapshot": annotated_b64,
+    }
+    ev = insert("detection_events", event_row)
+    if ev:
+        event_id = ev[0]["id"]
+        for det in result["detections"]:
+            x1, y1, x2, y2 = det["bbox"]
+            insert("detections", {
+                "event_id": event_id,
+                "class_id": det["class_id"],
+                "class_name": det["class_name"],
+                "confidence": det["confidence"],
+                "bbox_x1": x1,
+                "bbox_y1": y1,
+                "bbox_x2": x2,
+                "bbox_y2": y2,
+                "is_violation": det["is_violation"],
+            })
+
+        alert_violation = settings.get("alert_on_violation", True)
+        alert_fall = settings.get("alert_on_fall", True)
+        if result["event_type"] == "fall" and alert_fall:
+            insert("alerts", {
+                "user_id": user.id,
+                "camera_id": camera_id,
+                "event_id": event_id,
+                "alert_type": "fall",
+                "message": "Fall detected",
+            })
+        elif result["event_type"] == "violation" and alert_violation:
+            insert("alerts", {
+                "user_id": user.id,
+                "camera_id": camera_id,
+                "event_id": event_id,
+                "alert_type": "violation",
+                "message": "PPE violation detected",
+            })
+
+        return {
+            "event_id": event_id,
+            "event_type": result["event_type"],
+            "annotated_image": annotated_b64,
+            "detections": result["detections"],
+        }
+
+    return {**result, "annotated_image": annotated_b64}
 
 
 # ---------------------------------------------------------------------------
 # Cameras
 # ---------------------------------------------------------------------------
 @app.get("/cameras")
-def list_cameras(site_id: str | None = None, user=Depends(get_current_user)):
-    params = {"user_id": f"eq.{user.id}", "order": "created_at.desc"}
-    if site_id:
-        params["site_id"] = f"eq.{site_id}"
-    return select("cameras", params) or []
+def list_cameras(user=Depends(get_current_user)):
+    return select("cameras", {"user_id": f"eq.{user.id}", "order": "created_at.desc"}) or []
 
 
 @app.post("/cameras")
@@ -179,7 +212,7 @@ def create_camera(body: CameraCreate, user=Depends(get_current_user)):
         cam = insert("cameras", {
             "user_id": user.id,
             "name": body.name,
-            "site_id": body.site_id,
+            "stream_url": body.stream_url,
         })
         return cam[0]
     except Exception as e:
