@@ -5,13 +5,14 @@ from collections import Counter
 from datetime import datetime
 
 import cv2
+import httpx
 import numpy as np
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.auth import get_current_user, router as auth_router
-from backend.db import insert, select, update
+from backend.db import insert, select, update, _raw_delete
 from backend.detector import annotate, detect
 
 app = FastAPI(title="PPE Compliance API", version="1.0")
@@ -31,10 +32,12 @@ app.include_router(auth_router)
 # ---------------------------------------------------------------------------
 class CameraCreate(BaseModel):
     name: str
+    stream_url: str
 
 
 class CameraUpdate(BaseModel):
     name: str | None = None
+    stream_url: str | None = None
     is_active: bool | None = None
 
 
@@ -53,12 +56,38 @@ class EventCreate(BaseModel):
     detections: list[DetectionCreate] = []
 
 
+class SettingsUpdate(BaseModel):
+    violation_class_ids: list[int] | None = None
+    alert_on_violation: bool | None = None
+    alert_on_fall: bool | None = None
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _get_user_settings(user_id: str) -> dict:
+    rows = select("user_settings", {"user_id": f"eq.{user_id}", "limit": "1"})
+    return rows[0] if rows else {}
+
+
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Auth / Me
+# ---------------------------------------------------------------------------
+@app.get("/auth/me")
+def auth_me(user=Depends(get_current_user)):
+    rows = select("users", {"id": f"eq.{user.id}", "limit": "1"})
+    if not rows:
+        raise HTTPException(404, "User not found")
+    u = rows[0]
+    return {"id": u["id"], "username": u["username"], "created_at": u["created_at"]}
 
 
 # ---------------------------------------------------------------------------
@@ -73,11 +102,98 @@ async def detect_endpoint(
     nparr = np.frombuffer(contents, np.uint8)
     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    result = detect(frame)
+    settings = _get_user_settings(user.id)
+    vids = settings.get("violation_class_ids")
+    violation_ids = set(vids) if vids else None
+
+    result = detect(frame, violation_ids)
     annotated = annotate(frame, result["detections"])
 
     _, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
     annotated_b64 = base64.b64encode(buffer).decode()
+
+    return {**result, "annotated_image": annotated_b64}
+
+
+@app.post("/detect/camera/{camera_id}")
+def detect_from_camera(camera_id: str, user=Depends(get_current_user)):
+    cams = select("cameras", {"id": f"eq.{camera_id}", "user_id": f"eq.{user.id}"})
+    if not cams:
+        raise HTTPException(404, "Camera not found")
+    cam = cams[0]
+    stream_url = cam.get("stream_url")
+    if not stream_url:
+        raise HTTPException(400, "Camera has no stream_url")
+
+    try:
+        r = httpx.get(stream_url, timeout=10)
+        r.raise_for_status()
+        nparr = np.frombuffer(r.content, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is None:
+            raise HTTPException(502, "Failed to decode frame from stream_url")
+    except httpx.HTTPError:
+        raise HTTPException(502, "Failed to fetch frame from camera stream_url")
+
+    settings = _get_user_settings(user.id)
+    vids = settings.get("violation_class_ids")
+    violation_ids = set(vids) if vids else None
+
+    result = detect(frame, violation_ids)
+    annotated = annotate(frame, result["detections"])
+
+    _, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    annotated_b64 = base64.b64encode(buffer).decode()
+
+    # Auto-save event
+    event_row = {
+        "user_id": user.id,
+        "camera_id": camera_id,
+        "event_type": result["event_type"],
+        "snapshot": annotated_b64,
+    }
+    ev = insert("detection_events", event_row)
+    if ev:
+        event_id = ev[0]["id"]
+        for det in result["detections"]:
+            x1, y1, x2, y2 = det["bbox"]
+            insert("detections", {
+                "event_id": event_id,
+                "class_id": det["class_id"],
+                "class_name": det["class_name"],
+                "confidence": det["confidence"],
+                "bbox_x1": x1,
+                "bbox_y1": y1,
+                "bbox_x2": x2,
+                "bbox_y2": y2,
+                "is_violation": det["is_violation"],
+            })
+
+        alert_violation = settings.get("alert_on_violation", True)
+        alert_fall = settings.get("alert_on_fall", True)
+        if result["event_type"] == "fall" and alert_fall:
+            insert("alerts", {
+                "user_id": user.id,
+                "camera_id": camera_id,
+                "event_id": event_id,
+                "alert_type": "fall",
+                "message": "Fall detected",
+            })
+        elif result["event_type"] == "violation" and alert_violation:
+            insert("alerts", {
+                "user_id": user.id,
+                "camera_id": camera_id,
+                "event_id": event_id,
+                "alert_type": "violation",
+                "message": "PPE violation detected",
+            })
+
+        return {
+            "event_id": event_id,
+            "event_type": result["event_type"],
+            "annotated_image": annotated_b64,
+            "detections": result["detections"],
+        }
 
     return {**result, "annotated_image": annotated_b64}
 
@@ -93,7 +209,11 @@ def list_cameras(user=Depends(get_current_user)):
 @app.post("/cameras")
 def create_camera(body: CameraCreate, user=Depends(get_current_user)):
     try:
-        cam = insert("cameras", {"user_id": user.id, "name": body.name})
+        cam = insert("cameras", {
+            "user_id": user.id,
+            "name": body.name,
+            "stream_url": body.stream_url,
+        })
         return cam[0]
     except Exception as e:
         raise HTTPException(400, str(e))
@@ -113,8 +233,6 @@ def update_camera(camera_id: str, body: CameraUpdate, user=Depends(get_current_u
 
 @app.delete("/cameras/{camera_id}")
 def delete_camera(camera_id: str, user=Depends(get_current_user)):
-    from backend.db import _raw_delete
-
     try:
         _raw_delete("cameras", "id", camera_id)
         return {"ok": True}
@@ -154,13 +272,25 @@ def create_event(body: EventCreate, user=Depends(get_current_user)):
                 "is_violation": det.is_violation,
             })
 
-        if body.event_type in ("violation", "fall"):
+        settings = _get_user_settings(user.id)
+        alert_violation = settings.get("alert_on_violation", True)
+        alert_fall = settings.get("alert_on_fall", True)
+
+        if body.event_type == "fall" and alert_fall:
             insert("alerts", {
                 "user_id": user.id,
                 "camera_id": body.camera_id,
                 "event_id": event_id,
-                "alert_type": body.event_type,
-                "message": f"{body.event_type} detected",
+                "alert_type": "fall",
+                "message": "Fall detected",
+            })
+        elif body.event_type == "violation" and alert_violation:
+            insert("alerts", {
+                "user_id": user.id,
+                "camera_id": body.camera_id,
+                "event_id": event_id,
+                "alert_type": "violation",
+                "message": "PPE violation detected",
             })
 
         return event
@@ -188,9 +318,7 @@ def get_event(event_id: str, user=Depends(get_current_user)):
     if not r:
         raise HTTPException(404, "Event not found")
     event = r[0]
-    event["detections"] = (
-        select("detections", {"event_id": f"eq.{event_id}"}) or []
-    )
+    event["detections"] = select("detections", {"event_id": f"eq.{event_id}"}) or []
     return event
 
 
@@ -254,5 +382,37 @@ def ack_alert(alert_id: str, user=Depends(get_current_user)):
         return r[0]
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+@app.get("/settings")
+def get_settings(user=Depends(get_current_user)):
+    s = _get_user_settings(user.id)
+    if not s:
+        insert("user_settings", {"user_id": user.id})
+        s = _get_user_settings(user.id)
+    return {
+        "violation_class_ids": s.get("violation_class_ids", [0, 6, 7, 8, 9, 10]),
+        "alert_on_violation": s.get("alert_on_violation", True),
+        "alert_on_fall": s.get("alert_on_fall", True),
+    }
+
+
+@app.patch("/settings")
+def update_settings(body: SettingsUpdate, user=Depends(get_current_user)):
+    existing = _get_user_settings(user.id)
+    if not existing:
+        insert("user_settings", {"user_id": user.id})
+
+    data = body.model_dump(exclude_none=True)
+    if not data:
+        raise HTTPException(400, "No fields to update")
+    try:
+        r = update("user_settings", data, "user_id", user.id)
+        return r[0] if r else None
     except Exception as e:
         raise HTTPException(400, str(e))
