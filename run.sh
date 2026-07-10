@@ -3,9 +3,9 @@ set -e
 cd "$(dirname "$0")"
 
 # Export env vars from .env so both backend and frontend can see them
-set -a; source .env; set +a
+set -a; source backend/.env; set +a
 
-source venv/bin/activate
+source venv/Scripts/activate
 
 echo "Starting backend on :8000 ..."
 uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload &
