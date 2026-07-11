@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 480
-    camera_url: str
 
     api_host: str = "127.0.0.1"
     api_port: int = 8000

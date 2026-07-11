@@ -14,8 +14,6 @@ from pydantic import BaseModel
 from backend.auth import get_current_user, router as auth_router
 from backend.db import insert, select, update, _raw_delete
 from backend.detector import annotate, detect
-from backend.camera_manager import camera_manager
-from backend.stream import get_stream
 
 app = FastAPI(title="PPE Compliance API", version="1.0")
 
@@ -78,37 +76,6 @@ def _get_user_settings(user_id: str) -> dict:
 @app.get("/health")
 def health():
     return {"status": "ok"}
-# ---------------------------------------------------------------------------
-# Live Camera
-# ---------------------------------------------------------------------------
-
-@app.get("/camera/start")
-def start_camera():
-    camera_manager.start()
-    return {
-        "status": "Camera Started"
-    }
-
-
-@app.get("/camera/stop")
-def stop_camera():
-    camera_manager.stop()
-    return {
-        "status": "Camera Stopped"
-    }
-
-
-@app.get("/camera/status")
-def camera_status():
-
-    return {
-        "running": camera_manager.running
-    }
-
-
-@app.get("/camera/live")
-def live_camera():
-    return get_stream()
 
 
 # ---------------------------------------------------------------------------
