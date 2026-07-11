@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Compliance - Admin Settings</title>
+    <script src="js/auth-guard.js?v=2"></script>
+    <link rel="stylesheet" href="css/style.css?v=2">
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <i data-lucide="shield-alert" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div class="logo-text">PPE Sentry</div>
+            </div>
+            
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a href="index.html">
+                            <i data-lucide="layout-dashboard"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="detect.html">
+                            <i data-lucide="scan-eye"></i>
+                            Upload & Detect
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="logs.html">
+                            <i data-lucide="clipboard-list"></i>
+                            Violation Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reports.html">
+                            <i data-lucide="bar-chart-3"></i>
+                            Reports
+                        </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a href="admin.html">
+                            <i data-lucide="settings"></i>
+                            Admin Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="supabase-status-badge" class="supabase-badge" style="margin-bottom: 0.75rem;">
+                    <span class="indicator"></span>
+                    <span id="supabase-status-label">Checking...</span>
+                </div>
+                
+                <!-- User Profile Card -->
+                <div class="sidebar-profile">
+                    <div class="profile-avatar" id="user-avatar">??</div>
+                    <div class="profile-details">
+                        <span class="profile-name" id="user-display-name">Username</span>
+                        <span class="profile-role-badge" id="user-display-role">Role</span>
+                    </div>
+                    <button class="logout-icon-btn" id="logout-btn" title="Sign Out">
+                        <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Panel -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="header-bar">
+                <div class="page-title">
+                    <h1>System Administration</h1>
+                    <p>Manage cameras, monitoring locations, and user permission levels</p>
+                </div>
+            </header>
+
+            <div class="tabs-container">
+                <!-- Tab Headers -->
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab('cameras-tab')">Cameras & Site Configurations</button>
+                    <button class="tab-btn" onclick="switchTab('users-tab')">User Permissions</button>
+                </div>
+
+                <!-- Tab 1: Cameras Configuration -->
+                <div id="cameras-tab" class="tab-content active">
+                    <div style="display: grid; grid-template-columns: 2.2fr 1fr; gap: 1.5rem; align-items: start;">
+                        <!-- List of cameras -->
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title">
+                                    <i data-lucide="video" style="color: var(--color-primary);"></i>
+                                    Configured Cameras
+                                </h2>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="custom-table" id="cameras-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Camera Name</th>
+                                            <th>Site</th>
+                                            <th>Alert Rules</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cameras-tbody">
+                                        <tr>
+                                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                                                Loading camera settings...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Add Camera Form -->
+                        <div class="panel">
+                            <div class="panel-header" style="margin-bottom: 1.25rem;">
+                                <h2 class="panel-title">Add New Camera</h2>
+                            </div>
+                            <form id="add-camera-form">
+                                <div class="form-group">
+                                    <label class="form-label" for="cam-name">Camera Name</label>
+                                    <input type="text" id="cam-name" class="form-input" placeholder="e.g. CAM-05 Main Entrance" required>
+                                </div>
+                                <div class="form-group" style="margin-top: 1rem;">
+                                    <label class="form-label" for="cam-site">Site Location</label>
+                                    <select id="cam-site" class="form-select">
+                                        <option value="Site Alpha - Main Yard">Site Alpha - Main Yard</option>
+                                        <option value="Site Beta - Storage">Site Beta - Storage</option>
+                                        <option value="Site Gamma - Factory">Site Gamma - Factory</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" style="margin-top: 1.25rem;">
+                                    <label class="form-label">Alert Rules Enforced</label>
+                                    <div style="display: flex; flex-direction: column; gap: 0.65rem; margin-top: 0.5rem;">
+                                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer;">
+                                            <input type="checkbox" id="rule-helmet" checked style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+                                            Enforce Hardhat Compliance
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer;">
+                                            <input type="checkbox" id="rule-vest" checked style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+                                            Enforce Vest Compliance
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer;">
+                                            <input type="checkbox" id="rule-gloves" style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+                                            Enforce Gloves Compliance
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;">
+                                    <i data-lucide="plus-circle"></i>
+                                    Add Camera
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: User Permissions -->
+                <div id="users-tab" class="tab-content">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title">
+                                <i data-lucide="users" style="color: var(--color-primary);"></i>
+                                User Accounts & Roles
+                            </h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="custom-table" id="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>App Role</th>
+                                        <th>System Access</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-tbody">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                                            Loading user settings...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Camera Modal -->
+    <div id="edit-camera-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-content auth-card" style="max-width: 440px; padding: 2rem;">
+            <div class="panel-header" style="margin-bottom: 1.5rem; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                <h3 class="panel-title" style="font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                    <i data-lucide="edit-3" style="color: var(--color-primary); width: 20px; height: 20px;"></i>
+                    Edit Camera Rules
+                </h3>
+                <button type="button" onclick="closeEditModal()" class="btn btn-outline" style="border: none; padding: 0.25rem; min-width: auto; color: var(--text-muted); cursor: pointer; background: transparent;">
+                    <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                </button>
+            </div>
+            
+            <form id="edit-camera-form">
+                <input type="hidden" id="edit-cam-id">
+                
+                <div class="form-group">
+                    <label class="form-label" for="edit-cam-name">Camera Name</label>
+                    <input type="text" id="edit-cam-name" class="form-control" readonly style="opacity: 0.7; cursor: not-allowed; background-color: rgba(255,255,255,0.02);">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="edit-cam-site">Site / Location</label>
+                    <input type="text" id="edit-cam-site" class="form-control" required placeholder="e.g. Site Alpha - Main Yard">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" style="margin-bottom: 0.5rem; display: block;">Rules Enforced</label>
+                    <div style="display: flex; flex-direction: column; gap: 0.65rem; margin-top: 0.25rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; user-select: none;">
+                            <input type="checkbox" id="edit-rule-helmet" value="helmet" style="width: 15px; height: 15px; cursor: pointer;"> Hard Hat Enforcement
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; user-select: none;">
+                            <input type="checkbox" id="edit-rule-vest" value="vest" style="width: 15px; height: 15px; cursor: pointer;"> High-Vis Vest Enforcement
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; user-select: none;">
+                            <input type="checkbox" id="edit-rule-gloves" value="gloves" style="width: 15px; height: 15px; cursor: pointer;"> Safety Gloves Enforcement
+                        </label>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.75rem; margin-top: 2rem;">
+                    <button type="button" onclick="closeEditModal()" class="btn btn-outline" style="flex: 1; justify-content: center; padding: 0.6rem;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center; padding: 0.6rem;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/supabase-db.js"></script>
+    <script src="js/admin.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

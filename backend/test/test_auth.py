@@ -94,3 +94,47 @@ class TestLoginEndpoint:
         )
         resp = client.post("/auth/login", json={"username": "ghost", "password": "x"})
         assert resp.status_code == 401
+
+
+class TestSignupEndpoint:
+    def test_signup_success(self, client, httpx_mock, user_id):
+        # 1. Mock select check for existing username -> should return empty list
+        httpx_mock.add_response(
+            method="GET",
+            url=f"{settings.supabase_url}/rest/v1/users?username=eq.newguy&limit=1",
+            json=[],
+        )
+        # 2. Mock insert of new user -> representation
+        httpx_mock.add_response(
+            method="POST",
+            url=f"{settings.supabase_url}/rest/v1/users",
+            json=[{
+                "id": user_id,
+                "username": "newguy",
+                "password_hash": "somehashedpassword",
+            }],
+        )
+
+        resp = client.post("/auth/signup", json={"username": "newguy", "password": "securepassword"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["token_type"] == "bearer"
+        assert data["username"] == "newguy"
+        assert len(data["access_token"]) > 0
+
+    def test_signup_existing_user(self, client, httpx_mock):
+        # Mock select check -> user exists
+        httpx_mock.add_response(
+            method="GET",
+            url=f"{settings.supabase_url}/rest/v1/users?username=eq.existingguy&limit=1",
+            json=[{
+                "id": "existing-id",
+                "username": "existingguy",
+                "password_hash": "somehashedpassword",
+            }],
+        )
+
+        resp = client.post("/auth/signup", json={"username": "existingguy", "password": "securepassword"})
+        assert resp.status_code == 400
+        assert "already registered" in resp.json()["detail"].lower()
+
