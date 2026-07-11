@@ -9,6 +9,7 @@ import httpx
 import numpy as np
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend.auth import get_current_user, router as auth_router
@@ -70,6 +71,44 @@ class SettingsUpdate(BaseModel):
 def _get_user_settings(user_id: str) -> dict:
     rows = select("user_settings", {"user_id": f"eq.{user_id}", "limit": "1"})
     return rows[0] if rows else {}
+
+
+import json
+import os
+
+STREAM_FILE = "backend/camera_streams.json"
+
+
+def _get_stream_urls() -> dict:
+    if os.path.exists(STREAM_FILE):
+        try:
+            with open(STREAM_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_stream_url(camera_id: str, url: str):
+    urls = _get_stream_urls()
+    urls[camera_id] = url
+    try:
+        with open(STREAM_FILE, "w") as f:
+            json.dump(urls, f)
+    except Exception:
+        pass
+
+
+def _delete_stream_url(camera_id: str):
+    urls = _get_stream_urls()
+    if camera_id in urls:
+        del urls[camera_id]
+        try:
+            with open(STREAM_FILE, "w") as f:
+                json.dump(urls, f)
+        except Exception:
+            pass
+
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +193,7 @@ def detect_from_camera(camera_id: str, user=Depends(get_current_user)):
     if not cams:
         raise HTTPException(404, "Camera not found")
     cam = cams[0]
-    stream_url = cam.get("stream_url")
+    stream_url = cam.get("stream_url") or _get_stream_urls().get(camera_id)
     if not stream_url:
         raise HTTPException(400, "Camera has no stream_url")
 
@@ -236,7 +275,11 @@ def detect_from_camera(camera_id: str, user=Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 @app.get("/cameras")
 def list_cameras(user=Depends(get_current_user)):
-    return select("cameras", {"user_id": f"eq.{user.id}", "order": "created_at.desc"}) or []
+    cams = select("cameras", {"user_id": f"eq.{user.id}", "order": "created_at.desc"}) or []
+    urls = _get_stream_urls()
+    for cam in cams:
+        cam["stream_url"] = cam.get("stream_url") or urls.get(cam["id"], "http://localhost:8000/camera/live")
+    return cams
 
 
 @app.post("/cameras")
@@ -245,8 +288,12 @@ def create_camera(body: CameraCreate, user=Depends(get_current_user)):
         cam = insert("cameras", {
             "user_id": user.id,
             "name": body.name,
-            "stream_url": body.stream_url,
+            # "stream_url" is omitted here to bypass Supabase PGRST204 column not found schema cache error
         })
+        if cam:
+            camera_id = cam[0]["id"]
+            _save_stream_url(camera_id, body.stream_url)
+            cam[0]["stream_url"] = body.stream_url
         return cam[0]
     except Exception as e:
         raise HTTPException(400, str(e))
@@ -255,10 +302,23 @@ def create_camera(body: CameraCreate, user=Depends(get_current_user)):
 @app.patch("/cameras/{camera_id}")
 def update_camera(camera_id: str, body: CameraUpdate, user=Depends(get_current_user)):
     data = body.model_dump(exclude_none=True)
+    stream_url = data.pop("stream_url", None)
+    if stream_url:
+        _save_stream_url(camera_id, stream_url)
+        
     if not data:
-        raise HTTPException(400, "No fields to update")
+        # If only stream_url was updated
+        cams = select("cameras", {"id": f"eq.{camera_id}"})
+        if not cams:
+            raise HTTPException(404, "Camera not found")
+        cam = cams[0]
+        cam["stream_url"] = stream_url
+        return cam
+
     try:
         r = update("cameras", data, "id", camera_id)
+        if r:
+            r[0]["stream_url"] = stream_url or _get_stream_urls().get(camera_id, "http://localhost:8000/camera/live")
         return r[0] if r else None
     except Exception as e:
         raise HTTPException(400, str(e))
@@ -268,6 +328,7 @@ def update_camera(camera_id: str, body: CameraUpdate, user=Depends(get_current_u
 def delete_camera(camera_id: str, user=Depends(get_current_user)):
     try:
         _raw_delete("cameras", "id", camera_id)
+        _delete_stream_url(camera_id)
         return {"ok": True}
     except Exception as e:
         raise HTTPException(400, str(e))
@@ -449,3 +510,8 @@ def update_settings(body: SettingsUpdate, user=Depends(get_current_user)):
         return r[0] if r else None
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+# Mount static files for frontend to serve them from '/'
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+
