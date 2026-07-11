@@ -11,7 +11,7 @@ if not cap.isOpened():
     print("Failed to connect to camera")
     exit()
 
-print("✅ Camera Connected")
+print(" Camera Connected")
 
 while True:
     ret, frame = cap.read()
