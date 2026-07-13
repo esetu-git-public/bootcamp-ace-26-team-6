@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Compliance - Scan & Detect</title>
+    <script src="js/auth-guard.js?v=2"></script>
+    <link rel="stylesheet" href="css/style.css?v=2">
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <i data-lucide="shield-alert" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div class="logo-text">PPE Sentry</div>
+            </div>
+            
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a href="index.html">
+                            <i data-lucide="layout-dashboard"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a href="detect.html">
+                            <i data-lucide="scan-eye"></i>
+                            Upload & Detect
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="logs.html">
+                            <i data-lucide="clipboard-list"></i>
+                            Violation Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reports.html">
+                            <i data-lucide="bar-chart-3"></i>
+                            Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin.html">
+                            <i data-lucide="settings"></i>
+                            Admin Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="supabase-status-badge" class="supabase-badge" style="margin-bottom: 0.75rem;">
+                    <span class="indicator"></span>
+                    <span id="supabase-status-label">Checking...</span>
+                </div>
+                
+                <!-- User Profile Card -->
+                <div class="sidebar-profile">
+                    <div class="profile-avatar" id="user-avatar">??</div>
+                    <div class="profile-details">
+                        <span class="profile-name" id="user-display-name">Username</span>
+                        <span class="profile-role-badge" id="user-display-role">Role</span>
+                    </div>
+                    <button class="logout-icon-btn" id="logout-btn" title="Sign Out">
+                        <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Panel -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="header-bar">
+                <div class="page-title">
+                    <h1>PPE Scan & Detection</h1>
+                    <p>Process a static image to run compliance validation</p>
+                </div>
+            </header>
+
+            <div class="detection-workspace">
+                <!-- Left Panel: Media Viewer -->
+                <section style="display: flex; flex-direction: column; gap: 1rem;">
+                    <!-- Drag-and-drop Image Upload Zone -->
+                    <div id="dropzone" class="upload-dropzone">
+                        <div class="upload-icon">
+                            <i data-lucide="upload-cloud" style="width: 64px; height: 64px;"></i>
+                        </div>
+                        <div class="upload-text">
+                            <h3>Upload site photo</h3>
+                            <p>Drag and drop your image here, or browse local files</p>
+                            <button class="btn btn-outline" onclick="document.getElementById('file-input').click()">
+                                Select Image File
+                            </button>
+                            <div class="url-upload-group" style="margin-top: 1.25rem; display: flex; gap: 0.5rem; justify-content: center; width: 100%;" onclick="event.stopPropagation()">
+                                <input type="text" id="image-url-input" class="form-select" placeholder="Or enter image URL..." style="max-width: 250px; font-size: 0.85rem; padding: 0.4rem 0.8rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color);">
+                                <button id="load-url-btn" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; height: auto;">Load URL</button>
+                            </div>
+                        </div>
+                        <input type="file" id="file-input" accept="image/*">
+                    </div>
+
+                    <!-- Render Viewer (Loaded Image + Bounding Box Canvas) -->
+                    <div id="viewer-container" class="detection-viewer-container" style="display: none;">
+                        <div class="detection-image-wrapper">
+                            <img id="preview-image" src="" alt="PPE Target Scan">
+                            <canvas id="detection-canvas" class="detection-canvas"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right Panel: Controls & Analysis -->
+                <section class="detection-controls">
+                    <!-- Config Box -->
+                    <div class="settings-card">
+                        <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                            Scan Parameters
+                        </h3>
+                        
+                        <!-- Zone Input -->
+                        <div class="form-group">
+                            <label class="form-label">Monitoring Zone</label>
+                            <select id="zone-select" class="form-select">
+                                <option value="Zone A - Main Gate">Zone A - Main Gate</option>
+                                <option value="Zone B - Loading Dock">Zone B - Loading Dock</option>
+                                <option value="Zone C - Warehouse 2">Zone C - Warehouse 2</option>
+                                <option value="Zone D - Assembly Line">Zone D - Assembly Line</option>
+                                <option value="Zone E - Fabrication Yard">Zone E - Fabrication Yard</option>
+                            </select>
+                        </div>
+
+                        <!-- Test Scenario Selector (For Demonstrating Bounding Boxes) -->
+                        <div class="form-group">
+                            <label class="form-label">Simulation Scenario</label>
+                            <select id="scenario-select" class="form-select">
+                                <option value="missing-vest">Missing Safety Vest (Orange Alert)</option>
+                                <option value="fully-compliant">Fully Compliant PPE (Green Pass)</option>
+                                <option value="missing-helmet-gloves">Missing Helmet & Gloves (Critical Red Alert)</option>
+                            </select>
+                        </div>
+
+                        <!-- Scan Action -->
+                        <button id="detect-btn" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" disabled>
+                            <i data-lucide="scan-eye"></i>
+                            Run Detection
+                        </button>
+                        
+                        <button id="reset-btn" class="btn btn-outline" style="width: 100%; margin-top: 0.5rem; display: none;">
+                            <i data-lucide="refresh-cw"></i>
+                            Reset Scanner
+                        </button>
+                    </div>
+
+                    <!-- Detection Results Box (Hidden until Run Detection finishes) -->
+                    <div id="results-card" class="results-card">
+                        <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                            Detection Report
+                        </h3>
+                        
+                        <!-- Summary Header -->
+                        <div id="results-summary" class="results-summary">
+                            <div class="results-summary-icon">
+                                <i id="summary-icon" data-lucide="alert-octagon"></i>
+                            </div>
+                            <div class="results-summary-text">
+                                <h4 id="summary-title">Violation Detected</h4>
+                                <p id="summary-subtitle">Missing Vest (Confidence: 89%)</p>
+                            </div>
+                        </div>
+
+                        <!-- Items Grid List -->
+                        <h4 class="form-label" style="margin-bottom: 0.5rem;">Detected Objects</h4>
+                        <div id="detected-items-list" class="detected-items-list">
+                            <!-- Items inserted dynamically -->
+                        </div>
+
+                        <!-- Save/Log Status -->
+                        <div id="log-status-message" style="margin-top: 1.25rem; padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; background-color: rgba(255,255,255,0.03); color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="database" style="width: 14px; height: 14px;"></i>
+                            <span>Detection results saved to database log.</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/supabase-db.js"></script>
+    <script src="js/detect.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
