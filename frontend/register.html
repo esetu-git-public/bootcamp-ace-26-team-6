@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Compliance - Register</title>
+    <!-- Sync Auth Guard to prevent layout flash if already logged in -->
+    <script src="js/auth-guard.js?v=2"></script>
+    <link rel="stylesheet" href="css/style.css?v=2">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <!-- Logo Header -->
+            <div class="auth-logo">
+                <div class="auth-logo-icon">
+                    <i data-lucide="shield-check" style="width: 26px; height: 26px;"></i>
+                </div>
+                <div class="auth-logo-text">Create Account</div>
+                <div class="auth-logo-subtitle">Register Safety Officer or Administrator Profile</div>
+            </div>
+
+            <!-- Error Alerts Banner -->
+            <div class="auth-error-alert" id="auth-error-alert">
+                <i data-lucide="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+                <span id="error-message">Registration failed. Please try again.</span>
+            </div>
+
+            <!-- Register Form -->
+            <form id="register-form">
+                <div class="form-group">
+                    <label class="form-label" for="register-name">Full Name</label>
+                    <input 
+                        type="text" 
+                        id="register-name" 
+                        class="form-control" 
+                        placeholder="e.g. John Doe" 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="register-email">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="register-email" 
+                        class="form-control" 
+                        placeholder="name@company.com" 
+                        required 
+                        autocomplete="email"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="register-password">Password</label>
+                    <input 
+                        type="password" 
+                        id="register-password" 
+                        class="form-control" 
+                        placeholder="Min. 6 characters" 
+                        minlength="6"
+                        required 
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.75rem;">
+                    <label class="form-label" for="register-role">System Role</label>
+                    <select id="register-role" class="form-select" required>
+                        <option value="Safety Officer">Safety Officer (Alert Handler)</option>
+                        <option value="Observer">Observer (View Only)</option>
+                        <option value="Admin">Administrator (Full Access)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.75rem;">
+                    <i data-lucide="user-plus" style="width: 18px; height: 18px;"></i>
+                    Create Account
+                </button>
+            </form>
+
+            <!-- Redirect Link -->
+            <div class="auth-footer-link">
+                Already have an account? <a href="login.html">Sign in here</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script integrations -->
+    <script src="js/supabase-db.js?v=2"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Render Lucide icons
+            lucide.createIcons();
+
+            const form = document.getElementById("register-form");
+            const alertBox = document.getElementById("auth-error-alert");
+            const errorMsg = document.getElementById("error-message");
+
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                
+                const name = document.getElementById("register-name").value.trim();
+                const email = document.getElementById("register-email").value.trim();
+                const password = document.getElementById("register-password").value;
+                const role = document.getElementById("register-role").value;
+                const submitBtn = form.querySelector("button[type='submit']");
+
+                // Toggle loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<span class="loading-spinner" style="width: 14px; height: 14px; border-width: 2px;"></span> Creating...`;
+                alertBox.classList.remove("visible");
+
+                try {
+                    await signUpUser(name, email, password, role);
+                    // On success, redirect to dashboard
+                    window.location.href = "index.html";
+                } catch (error) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<i data-lucide="user-plus" style="width: 18px; height: 18px;"></i> Create Account`;
+                    lucide.createIcons();
+                    
+                    errorMsg.textContent = error.message || "An unexpected error occurred.";
+                    alertBox.classList.add("visible");
+                }
+            };
+        });
+    </script>
+</body>
+</html>
