@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     supabase_service_key: str
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 480
+    jwt_expire_minutes: int = 60
 
     api_host: str = "127.0.0.1"
     api_port: int = 8000

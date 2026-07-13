@@ -23,7 +23,7 @@ CLASS_NAMES = {
     13: "Safety Vest",
 }
 
-VIOLATION_IDS = {0, 6, 7, 8, 9, 10}
+VIOLATION_IDS = {6, 7, 8, 9, 10}
 
 _model = None
 
@@ -34,7 +34,8 @@ def _get_model():
         if os.path.exists(MODEL_PATH):
             _model = YOLO(MODEL_PATH)
         else:
-            _model = YOLO("last.pt")
+            fallback_path = os.path.join(os.path.dirname(__file__), "..", "models", "last.pt")
+            _model = YOLO(fallback_path)
     return _model
 
 

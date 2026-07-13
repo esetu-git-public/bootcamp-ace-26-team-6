@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.auth import get_current_user, router as auth_router
-from backend.db import insert, select, update, _raw_delete
+from backend.db import insert, select, update, delete
 from backend.detector import annotate, detect
 from backend.stream import camera_stream_response
 
@@ -117,7 +117,7 @@ async def detect_endpoint(
 
 
 @app.post("/detect/camera/{camera_id}")
-def detect_from_camera(camera_id: str, user=Depends(get_current_user)):
+async def detect_from_camera(camera_id: str, user=Depends(get_current_user)):
     cams = select("cameras", {"id": f"eq.{camera_id}", "user_id": f"eq.{user.id}"})
     if not cams:
         raise HTTPException(404, "Camera not found")
@@ -127,12 +127,13 @@ def detect_from_camera(camera_id: str, user=Depends(get_current_user)):
         raise HTTPException(400, "Camera has no stream_url")
 
     try:
-        r = httpx.get(stream_url, timeout=10)
-        r.raise_for_status()
-        nparr = np.frombuffer(r.content, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if frame is None:
-            raise HTTPException(502, "Failed to decode frame from stream_url")
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(stream_url)
+            r.raise_for_status()
+            nparr = np.frombuffer(r.content, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if frame is None:
+                raise HTTPException(502, "Failed to decode frame from stream_url")
     except httpx.HTTPError:
         raise HTTPException(502, "Failed to fetch frame from camera stream_url")
 
@@ -235,7 +236,7 @@ def update_camera(camera_id: str, body: CameraUpdate, user=Depends(get_current_u
 @app.delete("/cameras/{camera_id}")
 def delete_camera(camera_id: str, user=Depends(get_current_user)):
     try:
-        _raw_delete("cameras", "id", camera_id)
+        delete("cameras", "id", camera_id)
         return {"ok": True}
     except Exception as e:
         raise HTTPException(400, str(e))

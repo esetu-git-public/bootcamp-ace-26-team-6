@@ -6,7 +6,7 @@ from backend.db import (
     select,
     insert,
     update,
-    _raw_delete
+    delete
 )
 
 
@@ -95,6 +95,7 @@ def test_update(mock_patch):
     mock_patch.assert_called_once()
 
 
+
 @patch("backend.db.httpx.delete")
 def test_delete_success(mock_delete):
 
@@ -104,9 +105,11 @@ def test_delete_success(mock_delete):
 
     mock_delete.return_value = response
 
-    assert _raw_delete("roles", "id", 1) is True
+    result = delete("roles", "id", 1)
+    assert result == []
 
     mock_delete.assert_called_once()
+
 
 
 @patch("backend.db.httpx.delete")
@@ -119,4 +122,4 @@ def test_delete_failure(mock_delete):
     mock_delete.return_value = response
 
     with pytest.raises(Exception):
-        _raw_delete("roles", "id", 1)
+        delete("roles", "id", 1)

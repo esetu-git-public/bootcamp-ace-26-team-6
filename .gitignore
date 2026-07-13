@@ -12,3 +12,4 @@ runs/
 __pycache__/
 .vscode/
 .pytest_cache/
+backend/.env

@@ -50,13 +50,11 @@ def update(table: str, data: dict, field: str, value):
     return _handle_response(response)
 
 
-def _raw_delete(table: str, field: str, value):
+def delete(table: str, field: str, value):
     response = httpx.delete(
         f"{BASE_URL}/{table}",
         headers=HEADERS,
         params={field: f"eq.{value}"},
         timeout=15,
     )
-    if response.status_code >= 400:
-        raise Exception(f"Supabase Error [{response.status_code}]: {response.text}")
-    return response.status_code == 204
+    return _handle_response(response)
