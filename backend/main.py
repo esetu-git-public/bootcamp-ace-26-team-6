@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from backend.auth import get_current_user, router as auth_router
 from backend.db import insert, select, update, _raw_delete
 from backend.detector import annotate, detect
+from backend.stream import camera_stream_response
 
 app = FastAPI(title="PPE Compliance API", version="1.0")
 
@@ -238,6 +239,23 @@ def delete_camera(camera_id: str, user=Depends(get_current_user)):
         return {"ok": True}
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+@app.get("/camera/{camera_id}/stream")
+def camera_stream(camera_id: str, user=Depends(get_current_user)):
+    cams = select("cameras", {"id": f"eq.{camera_id}", "user_id": f"eq.{user.id}"})
+    if not cams:
+        raise HTTPException(404, "Camera not found")
+    cam = cams[0]
+    stream_url = cam.get("stream_url")
+    if not stream_url:
+        raise HTTPException(400, "Camera has no stream_url")
+
+    settings = _get_user_settings(user.id)
+    vids = settings.get("violation_class_ids")
+    violation_ids = set(vids) if vids else None
+
+    return camera_stream_response(stream_url, violation_ids)
 
 
 # ---------------------------------------------------------------------------
