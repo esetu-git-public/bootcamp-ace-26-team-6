@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Compliance - Daily History</title>
+    <script src="js/auth-guard.js?v=3"></script>
+    <link rel="stylesheet" href="css/style.css?v=3">
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <i data-lucide="shield-alert" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div class="logo-text">PPE Sentry</div>
+            </div>
+            
+<nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a href="index.html">
+                            <i data-lucide="layout-dashboard"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="logs.html">
+                            <i data-lucide="clipboard-list"></i>
+                            Violation Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reports.html">
+                            <i data-lucide="bar-chart-3"></i>
+                            Reports
+                        </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a href="history.html">
+                            <i data-lucide="calendar"></i>
+                            History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="about.html">
+                            <i data-lucide="info"></i>
+                            About
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin.html">
+                            <i data-lucide="settings"></i>
+                            Admin Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="supabase-status-badge" class="supabase-badge" style="margin-bottom: 0.75rem;">
+                    <span class="indicator"></span>
+                    <span id="supabase-status-label">Checking...</span>
+                </div>
+                
+                <!-- User Profile Card -->
+                <div class="sidebar-profile">
+                    <div class="profile-avatar" id="user-avatar">??</div>
+                    <div class="profile-details">
+                        <span class="profile-name" id="user-display-name">Username</span>
+                    </div>
+                    <button class="logout-icon-btn" id="logout-btn" title="Sign Out">
+                        <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Panel -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="header-bar">
+                <div class="page-title">
+                    <h1>Daily Detection History</h1>
+                    <p>Browse all detection events for a specific day</p>
+                </div>
+                <div class="header-actions">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <label class="form-label" style="margin-bottom: 0; white-space: nowrap;">Date:</label>
+                        <input type="date" id="history-date" class="form-input" style="width: auto; max-width: 180px;">
+                        <button id="history-date-prev" class="btn btn-outline" style="padding: 0.4rem 0.6rem;" title="Previous day">
+                            <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i>
+                        </button>
+                        <button id="history-date-next" class="btn btn-outline" style="padding: 0.4rem 0.6rem;" title="Next day">
+                            <i data-lucide="chevron-right" style="width: 16px; height: 16px;"></i>
+                        </button>
+                        <button id="history-today-btn" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Today</button>
+                    </div>
+                    <button id="load-history-btn" class="btn btn-primary">
+                        <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                        Load
+                    </button>
+                    <button id="export-history-csv" class="btn btn-outline">
+                        <i data-lucide="download"></i>
+                        Export CSV
+                    </button>
+                </div>
+            </header>
+
+            <!-- Summary Cards -->
+            <section class="dashboard-grid" id="history-summary" style="display: none; margin-bottom: 2rem;">
+                <div class="stat-card primary">
+                    <div class="stat-info">
+                        <span class="stat-label">Total Events</span>
+                        <span class="stat-value" id="hist-total">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="list" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+
+                <div class="stat-card violation">
+                    <div class="stat-info">
+                        <span class="stat-label">Violations</span>
+                        <span class="stat-value" id="hist-violations">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="alert-triangle" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+
+                <div class="stat-card warning">
+                    <div class="stat-info">
+                        <span class="stat-label">Falls Detected</span>
+                        <span class="stat-value" id="hist-falls">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="user-minus" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+
+                <div class="stat-card compliant">
+                    <div class="stat-info">
+                        <span class="stat-label">Compliant</span>
+                        <span class="stat-value" id="hist-compliant">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="shield-check" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Data Table -->
+            <section class="panel">
+                <div class="table-responsive">
+                    <table class="custom-table" id="history-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable sort-desc" data-column="detected_at">Timestamp</th>
+                                <th class="sortable" data-column="event_type">Event Type</th>
+                                <th class="sortable" data-column="camera">Camera</th>
+                                <th class="sortable" data-column="zone">Zone</th>
+                                <th class="sortable" data-column="worker_area">Area</th>
+                                <th class="sortable" data-column="confidence">Confidence</th>
+                                <th class="sortable" data-column="status">Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                                    Select a date and click Load to view history
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="pagination-container">
+                    <div id="history-pagination-info">Showing -- to -- of -- entries</div>
+                    <div class="pagination-controls" id="history-pagination-controls">
+                        <!-- Dynamic page links -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/supabase-db.js"></script>
+    <script src="js/history.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
+ENDOFFILE

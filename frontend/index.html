@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Compliance - Live Monitoring Dashboard</title>
+    <script src="js/auth-guard.js?v=4"></script>
+    <link rel="stylesheet" href="css/style.css?v=4">
+
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <i data-lucide="shield-alert" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div class="logo-text">PPE Sentry</div>
+            </div>
+            
+<nav>
+                <ul class="nav-links">
+                    <li class="nav-item active">
+                        <a href="index.html">
+                            <i data-lucide="layout-dashboard"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="logs.html">
+                            <i data-lucide="clipboard-list"></i>
+                            Violation Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reports.html">
+                            <i data-lucide="bar-chart-3"></i>
+                            Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="history.html">
+                            <i data-lucide="calendar"></i>
+                            History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="about.html">
+                            <i data-lucide="info"></i>
+                            About
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin.html">
+                            <i data-lucide="settings"></i>
+                            Admin Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="supabase-status-badge" class="supabase-badge" style="margin-bottom: 0.75rem;">
+                    <span class="indicator"></span>
+                    <span id="supabase-status-label">Checking...</span>
+                </div>
+                
+                <!-- User Profile Card -->
+                <div class="sidebar-profile">
+                    <div class="profile-avatar" id="user-avatar">??</div>
+                    <div class="profile-details">
+                        <span class="profile-name" id="user-display-name">Username</span>
+                    </div>
+                    <button class="logout-icon-btn" id="logout-btn" title="Sign Out">
+                        <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Panel -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="header-bar">
+                <div class="page-title">
+                    <h1>Live Compliance Monitor</h1>
+                    <p>Real-time safety camera feeds and incident response panel</p>
+                </div>
+                <div class="header-actions">
+                    <!-- Audio Alarm Toggle Button -->
+                    <button id="audio-alarm-btn" class="btn btn-outline">
+                        <i data-lucide="volume-2"></i>
+                        <span>Alarm Sound: ON</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Metrics Cards Grid -->
+            <section class="dashboard-grid">
+                <!-- Compliance Rate -->
+                <div class="stat-card primary" id="card-compliance">
+                    <div class="stat-info">
+                        <span class="stat-label">Compliance Rate</span>
+                        <span class="stat-value" id="val-compliance">--%</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="percent" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+
+                <!-- Unresolved Alerts (Today) -->
+                <div class="stat-card violation" id="card-unresolved">
+                    <div class="stat-info">
+                        <span class="stat-label">Unresolved Alerts (Today)</span>
+                        <span class="stat-value" id="val-unresolved">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="alert-triangle" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+
+                <!-- Active Alerts Today -->
+                <div class="stat-card warning" id="card-today-alerts">
+                    <div class="stat-info">
+                        <span class="stat-label">Alerts (Today)</span>
+                        <span class="stat-value" id="val-today-alerts">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="activity" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Historical Trends chart (Bottom) -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <i data-lucide="bar-chart-2" style="color: var(--color-primary);"></i>
+                        7-Day Compliance Trends
+                    </h2>
+                </div>
+                <div class="chart-container">
+                    <canvas id="complianceTrendsChart"></canvas>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Floating Toasts alerts wrapper -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/supabase-db.js?v=4"></script>
+    <script src="js/dashboard.js?v=4"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Compliance - Reports & Analysis</title>
+    <script src="js/auth-guard.js?v=3"></script>
+    <link rel="stylesheet" href="css/style.css?v=3">
+
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <i data-lucide="shield-alert" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div class="logo-text">PPE Sentry</div>
+            </div>
+            
+<nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a href="index.html">
+                            <i data-lucide="layout-dashboard"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="logs.html">
+                            <i data-lucide="clipboard-list"></i>
+                            Violation Log
+                        </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a href="reports.html">
+                            <i data-lucide="bar-chart-3"></i>
+                            Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="history.html">
+                            <i data-lucide="calendar"></i>
+                            History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin.html">
+                            <i data-lucide="settings"></i>
+                            Admin Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="supabase-status-badge" class="supabase-badge" style="margin-bottom: 0.75rem;">
+                    <span class="indicator"></span>
+                    <span id="supabase-status-label">Checking...</span>
+                </div>
+                
+                <!-- User Profile Card -->
+                <div class="sidebar-profile">
+                    <div class="profile-avatar" id="user-avatar">??</div>
+                    <div class="profile-details">
+                        <span class="profile-name" id="user-display-name">Username</span>
+                    </div>
+                    <button class="logout-icon-btn" id="logout-btn" title="Sign Out">
+                        <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Panel -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="header-bar">
+                <div class="page-title">
+                    <h1>Compliance Reports & Analytics</h1>
+                    <p>Analyze safety trends and export compliance statistics</p>
+                </div>
+                <div class="header-actions">
+                    <button id="export-pdf-btn" class="btn btn-primary">
+                        <i data-lucide="printer"></i>
+                        Print Report
+                    </button>
+                    <button id="export-data-btn" class="btn btn-outline">
+                        <i data-lucide="download"></i>
+                        Export Chart Data
+                    </button>
+                </div>
+            </header>
+
+            <!-- Metrics Summary Cards -->
+            <section class="dashboard-grid" style="margin-bottom: 2rem;">
+                <div class="stat-card violation">
+                    <div class="stat-info">
+                        <span class="stat-label">Total Safety Alerts</span>
+                        <span class="stat-value" id="rep-total-violations">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="alert-octagon" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+
+                <div class="stat-card warning">
+                    <div class="stat-info">
+                        <span class="stat-label">Top Violation Type</span>
+                        <span class="stat-value" id="rep-top-type" style="font-size: 1.5rem; line-height: 1.5;">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="hard-hat" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+
+                <div class="stat-card primary">
+                    <div class="stat-info">
+                        <span class="stat-label">Most Active Camera</span>
+                        <span class="stat-value" id="rep-top-camera" style="font-size: 1.5rem; line-height: 1.5;">--</span>
+                    </div>
+                    <div class="stat-icon-wrapper">
+                        <i data-lucide="video" style="width: 24px; height: 24px;"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Main Trend Panel -->
+            <section class="panel" style="margin-bottom: 1.5rem;">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <i data-lucide="trending-up" style="color: var(--color-primary);"></i>
+                        Daily Compliance Trend (Last 7 Days)
+                    </h2>
+                </div>
+                <div class="chart-container" style="height: 320px;">
+                    <canvas id="dailyTrendChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Grid Layout for Sub-charts -->
+            <div class="report-charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                <!-- Violations by Type (Doughnut) -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="pie-chart" style="color: var(--color-violation);"></i>
+                            Violation Type Distribution
+                        </h2>
+                    </div>
+                    <div class="chart-container" style="height: 280px;">
+                        <canvas id="typeDistributionChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Violations by Camera (Horizontal Bar) -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="video" style="color: var(--color-violation);"></i>
+                            Violations by Camera
+                        </h2>
+                    </div>
+                    <div class="chart-container" style="height: 280px;">
+                        <canvas id="cameraViolationsChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Violation Type Daily Trends (Stacked Bar) -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <i data-lucide="bar-chart-2" style="color: var(--color-primary);"></i>
+                        7-Day Violation Type Trends
+                    </h2>
+                </div>
+                <div class="chart-container" style="height: 320px;">
+                    <canvas id="typeTrendsChart"></canvas>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/supabase-db.js"></script>
+    <script src="js/reports.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

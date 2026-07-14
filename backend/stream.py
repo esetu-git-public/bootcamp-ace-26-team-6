@@ -10,7 +10,17 @@ logger = logging.getLogger(__name__)
 
 
 def generate_frames(stream_url: str, violation_ids: set | None = None):
-    if stream_url.startswith("rtsp://"):
+    """
+    Generate MJPEG frames from either RTSP stream or HTTP JPEG endpoint.
+    
+    Supported stream_url formats:
+    - RTSP: rtsp://ip:port/path
+    - HTTP JPEG: http://ip:port/shot.jpg
+    """
+    is_rtsp = stream_url.lower().startswith("rtsp://")
+    
+    if is_rtsp:
+        # RTSP stream using OpenCV VideoCapture
         cap = cv2.VideoCapture(stream_url)
         if not cap.isOpened():
             logger.error(f"Failed to open RTSP stream: {stream_url}")
@@ -27,12 +37,13 @@ def generate_frames(stream_url: str, violation_ids: set | None = None):
                     _, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
                     yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
                 except Exception as e:
-                    logger.exception(f"Detection error on frame: {e}")
+                    logger.exception(f"Detection error on RTSP frame: {e}")
                     continue
         finally:
             cap.release()
             logger.info(f"Released RTSP capture: {stream_url}")
     else:
+        # HTTP JPEG endpoint (e.g., IP Webcam /shot.jpg)
         while True:
             try:
                 r = httpx.get(stream_url, timeout=5)
@@ -40,6 +51,7 @@ def generate_frames(stream_url: str, violation_ids: set | None = None):
                 nparr = np.frombuffer(r.content, np.uint8)
                 frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 if frame is None:
+                    logger.warning(f"Failed to decode frame from {stream_url}")
                     continue
                 result = detect(frame, violation_ids)
                 annotated = annotate(frame, result["detections"])

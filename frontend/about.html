@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Compliance - About</title>
+    <script src="js/auth-guard.js?v=3"></script>
+    <link rel="stylesheet" href="css/style.css?v=3">
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <i data-lucide="shield-alert" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div class="logo-text">PPE Sentry</div>
+            </div>
+            
+<nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a href="index.html">
+                            <i data-lucide="layout-dashboard"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="logs.html">
+                            <i data-lucide="clipboard-list"></i>
+                            Violation Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="reports.html">
+                            <i data-lucide="bar-chart-3"></i>
+                            Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="history.html">
+                            <i data-lucide="calendar"></i>
+                            History
+                        </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a href="about.html">
+                            <i data-lucide="info"></i>
+                            About
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin.html">
+                            <i data-lucide="settings"></i>
+                            Admin Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="supabase-status-badge" class="supabase-badge" style="margin-bottom: 0.75rem;">
+                    <span class="indicator"></span>
+                    <span id="supabase-status-label">Checking...</span>
+                </div>
+                
+                <!-- User Profile Card -->
+                <div class="sidebar-profile">
+                    <div class="profile-avatar" id="user-avatar">??</div>
+                    <div class="profile-details">
+                        <span class="profile-name" id="user-display-name">Username</span>
+                    </div>
+                    <button class="logout-icon-btn" id="logout-btn" title="Sign Out">
+                        <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Panel -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="header-bar">
+                <div class="page-title">
+                    <h1>About PPE Sentry</h1>
+                    <p>Real-time PPE Compliance Detection System</p>
+                </div>
+            </header>
+
+            <!-- About Content -->
+            <div style="max-width: 900px; margin: 0 auto;">
+                <!-- System Overview -->
+                <section class="panel" style="margin-bottom: 2rem;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="shield" style="color: var(--color-primary);"></i>
+                            System Overview
+                        </h2>
+                    </div>
+                    <div style="font-size: 1rem; line-height: 1.7; color: var(--text-main);">
+                        <p><strong>PPE Sentry</strong> is an AI-powered real-time Personal Protective Equipment (PPE) compliance monitoring system designed for industrial and construction environments. The system uses computer vision to automatically detect whether workers are wearing required safety equipment and alerts supervisors to violations in real-time.</p>
+                        <p>The system processes live video feeds from CCTV cameras, applies YOLOv8 object detection to identify workers and their PPE, and generates instant alerts for non-compliance events. All detection events are logged for compliance reporting and audit trails.</p>
+                    </div>
+                </section>
+
+                <!-- AI Model Information -->
+                <section class="panel" style="margin-bottom: 2rem;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="cpu" style="color: var(--color-primary);"></i>
+                            AI Model & Detection Capabilities
+                        </h2>
+                    </div>
+                    <div style="font-size: 1rem; line-height: 1.7; color: var(--text-main);">
+                        <h3 style="margin-bottom: 1rem; color: var(--text-main);">Model: YOLOv8 (Ultralytics)</h3>
+                        <p style="margin-bottom: 1.5rem;">The system uses a custom-trained YOLOv8 model optimized for PPE detection in industrial settings. The model achieves sub-50ms inference time on GPU, enabling real-time processing of multiple camera streams.</p>
+                        
+                        <h4 style="margin-bottom: 0.75rem; color: var(--text-main);">Detected Classes (14 total):</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                <i data-lucide="shield" style="width: 16px; height: 16px; color: var(--color-compliant);"></i>
+                                <span><strong>Hardhat</strong> (Compliant)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: var(--color-violation);"></i>
+                                <span><strong>NO-Hardhat</strong> (Violation)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                <i data-lucide="shield" style="width: 16px; height: 16px; color: var(--color-compliant);"></i>
+                                <span><strong>Safety Vest</strong> (Compliant)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: var(--color-violation);"></i>
+                                <span><strong>NO-Safety Vest</strong> (Violation)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                <i data-lucide="shield" style="width: 16px; height: 16px; color: var(--color-compliant);"></i>
+                                <span><strong>Gloves</strong> (Compliant)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: var(--color-violation);"></i>
+                                <span><strong>NO-Gloves</strong> (Violation)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                <i data-lucide="shield" style="width: 16px; height: 16px; color: var(--color-compliant);"></i>
+                                <span><strong>Goggles</strong> (Compliant)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: var(--color-violation);"></i>
+                                <span><strong>NO-Goggles</strong> (Violation)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                <i data-lucide="shield" style="width: 16px; height: 16px; color: var(--color-compliant);"></i>
+                                <span><strong>Mask</strong> (Compliant)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: var(--color-violation);"></i>
+                                <span><strong>NO-Mask</strong> (Violation)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                                <i data-lucide="user" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
+                                <span><strong>Person</strong> (Detection)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                                <i data-lucide="activity" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
+                                <span><strong>Ladder</strong> (Detection)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                                <i data-lucide="cone" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
+                                <span><strong>Safety Cone</strong> (Detection)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                <i data-lucide="alert-octagon" style="width: 16px; height: 16px; color: var(--color-violation);"></i>
+                                <span><strong>Fall-Detected</strong> (Violation)</span>
+                            </div>
+                        </div>
+
+                        <h4 style="margin-bottom: 0.75rem; color: var(--text-main);">Violation Classes (Configurable per User)</h4>
+                        <p>Users can configure which PPE items trigger violations through <strong>Admin Settings → Detection Settings</strong>. By default, all 5 PPE violations and Fall Detection are enabled. The system uses class IDs 6-10 for PPE violations and class ID 0 for Fall Detection.</p>
+                    </div>
+                </section>
+
+                <!-- Technical Stack -->
+                <section class="panel" style="margin-bottom: 2rem;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="layers" style="color: var(--color-primary);"></i>
+                            Technology Stack
+                        </h2>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <div style="background: rgba(59, 130, 246, 0.1); border:1); border-radius: 8px; padding: 1rem; border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <h4 style="color: var(--color-primary); margin-bottom: 0.5rem;">Backend</h4>
+                            <ul style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.8;">
+                                <li>Python 3.10+ / FastAPI</li>
+                                <li>YOLOv8 (Ultralytics)</li>
+                                <li>OpenCV for video processing</li>
+                                <li>Supabase (PostgreSQL)</li>
+                                <li>JWT Authentication</li>
+                            </ul>
+                        </div>
+                        <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 1rem; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            <h4 style="color: var(--color-compliant); margin-bottom: 0.5rem;">Frontend</h4>
+                            <ul style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.8;">
+                                <li>Vanilla JavaScript (ES6+)</li>
+                                <li>Chart.js for analytics</li>
+                                <li>Lucide Icons</li>
+                                <li>CSS Grid/Flexbox layout</li>
+                                <li>Served via FastAPI StaticFiles</li>
+                            </ul>
+                        </div>
+                        <div style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 1rem; border: 1px solid rgba(245, 158, 11, 0.3);">
+                            <h4 style="color: var(--color-warning); margin-bottom: 0.5rem;">AI/ML</h4>
+                            <ul style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.8;">
+                                <li>YOLOv8n/s/m/l custom weights</li>
+                                <li>PyTorch / ONNX Runtime</li>
+                                <li>Real-time MJPEG streaming</li>
+                                <li>Configurable violation classes</li>
+                                <li>Sub-50ms inference (GPU)</li>
+                            </ul>
+                        </div>
+                        <div style="background: rgba(236, 72, 153, 0.1); border-radius: 8px; padding: 1rem; border: 1px solid rgba(236, 72, 153, 0.3);">
+                            <h4 style="color: #ec4899; margin-bottom: 0.5rem;">Database & Auth</h4>
+                            <ul style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.8;">
+                                <li>Supabase (PostgreSQL)</li>
+                                <li>Row Level Security (RLS)</li>
+                                <li>JWT tokens (HS256)</li>
+                                <li>Bcrypt password hashing</li>
+                                <li>REST API via PostgREST</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- GitHub Repository -->
+                <section class="panel" style="margin-bottom: 2rem;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="github" style="color: var(--color-primary);"></i>
+                            Source Code & Contributing
+                        </h2>
+                    </div>
+                    <div style="text-align: center; padding: 2rem;">
+                        <p style="margin-bottom: 1.5rem; font-size: 1.1rem; color: var(--text-main);">
+                            The project is open-source and available on GitHub:
+                        </p>
+                        <a href="https://github.com/esetu-git-public/bootcamp-ace-26-team-6" target="_blank" rel="noopener noreferrer" 
+                           style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--color-primary); color: white; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 1rem; transition: background 0.2s;">
+                            <i data-lucide="github" style="width: 20px; height: 20px;"></i>
+                            View on GitHub
+                        </a>
+                        <p style="margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                            Repository: <code style="background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">github.com/esetu-git-public/bootcamp-ace-26-team-6</code>
+                        </p>
+                    </div>
+                </section>
+
+                <!-- License & Credits -->
+                <section class="panel" style="margin-bottom: 2rem;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="scale" style="color: var(--color-primary);"></i>
+                            License & Credits
+                        </h2>
+                    </div>
+                    <div style="font-size: 0.95rem; line-height: 1.8; color: var(--text-muted);">
+                        <p><strong>License:</strong> MIT License - Free for commercial and personal use.</p>
+                        <p><strong>Built for:</strong> Bootcamp ACE 2026 - Team 6</p>
+                        <p><strong>Key Dependencies:</strong></p>
+                        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                            <li>Ultralytics YOLOv8 - <a href="https://github.com/ultralytics/ultralytics" target="_blank" style="color: var(--color-primary);">github.com/ultralytics/ultralytics</a></li>
+                            <li>FastAPI - <a href="https://fastapi.tiangolo.com/" target="_blank" style="color: var(--color-primary);">fastapi.tiangolo.com</a></li>
+                            <li>Chart.js - <a href="https://www.chartjs.org/" target="_blank" style="color: var(--color-primary);">chartjs.org</a></li>
+                            <li>Lucide Icons - <a href="https://lucide.dev/" target="_blank" style="color: var(--color-primary);">lucide.dev</a></li>
+                            <li>Supabase - <a href="https://supabase.com/" target="_blank" style="color: var(--color-primary);">supabase.com</a></li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Contact & Support -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="mail" style="color: var(--color-primary);"></i>
+                            Support & Contact
+                        </h2>
+                    </div>
+                    <div style="text-align: center; padding: 1rem;">
+                        <p style="color: var(--text-muted); margin-bottom: 1rem;">For issues, feature requests, or contributions:</p>
+                        <a href="https://github.com/esetu-git-public/bootcamp-ace-26-team-6/issues" target="_blank" rel="noopener noreferrer"
+                           style="display: inline-flex; align-items: center; gap: 0.5rem; color: var(--color-primary); text-decoration: none; font-weight: 500;">
+                            <i data-lucide="alert-triangle" style="width: 18px; height: 18px;"></i>
+                            Open an Issue on GitHub
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/supabase-db.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

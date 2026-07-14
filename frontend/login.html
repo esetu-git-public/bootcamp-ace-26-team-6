@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Compliance - Login</title>
+    <!-- Sync Auth Guard to prevent layout flash if already logged in -->
+    <script src="js/auth-guard.js?v=3"></script>
+    <link rel="stylesheet" href="css/style.css?v=3">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom Premium CSS overrides for Login/Register Pages */
+        body {
+            overflow: hidden;
+        }
+        .auth-container {
+            display: flex;
+            min-height: 100vh;
+            width: 100vw;
+            background-color: #0b0f19;
+            font-family: 'Outfit', sans-serif;
+        }
+        
+        /* Left Panel - Glowing Grid / Hero Panel */
+        .auth-hero-panel {
+            flex: 1.2;
+            position: relative;
+            background: linear-gradient(135deg, #111827 0%, #030712 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+        
+        /* Scanning overlay effect */
+        .auth-hero-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.005) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.005) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+            z-index: 1;
+        }
+
+        .hud-line {
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(to right, transparent, var(--color-primary), transparent);
+            top: 0;
+            animation: scanHorizontal 8s linear infinite;
+            z-index: 2;
+            opacity: 0.7;
+        }
+
+        @keyframes scanHorizontal {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+
+        .hero-graphics {
+            position: relative;
+            z-index: 3;
+            text-align: center;
+            max-width: 520px;
+        }
+
+        .glowing-shield {
+            width: 90px;
+            height: 90px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid var(--color-primary);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-primary);
+            box-shadow: 0 0 35px rgba(59, 130, 246, 0.4);
+            margin-bottom: 2rem;
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 35px rgba(59, 130, 246, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 50px rgba(59, 130, 246, 0.6); }
+        }
+
+        .hero-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 1rem;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+        }
+
+        .hero-title span {
+            background: linear-gradient(to right, #3b82f6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 1rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+        .visual-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            width: 100%;
+            margin-top: 1.5rem;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-box h4 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-box p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Right Panel - Glassmorphic Form */
+        .auth-form-panel {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2.5rem;
+            background: #090d16;
+            position: relative;
+            z-index: 10;
+        }
+
+        .auth-form-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(22, 30, 46, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: formSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes formSlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .auth-form-header {
+            margin-bottom: 2.25rem;
+        }
+
+        .auth-form-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        .auth-form-desc {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* Premium Form Controls */
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 1.25rem;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            width: 18px;
+            height: 18px;
+            transition: color 0.3s;
+        }
+
+        .premium-input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .premium-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.25);
+            background: rgba(0, 0, 0, 0.45);
+        }
+
+        .premium-input:focus + .input-icon {
+            color: var(--color-primary);
+        }
+
+        .premium-button {
+            width: 100%;
+            padding: 0.85rem;
+            background: linear-gradient(135deg, var(--color-primary) 0%, #2563eb 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 10px 20px -10px rgba(59, 130, 246, 0.5);
+            transition: all 0.3s;
+            margin-top: 1.75rem;
+        }
+
+        .premium-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -10px rgba(59, 130, 246, 0.6);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        .premium-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .premium-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* Mobile Responsive layout rules */
+        @media (max-width: 968px) {
+            .auth-hero-panel {
+                display: none;
+            }
+            .auth-form-panel {
+                flex: 1;
+                padding: 1.5rem;
+            }
+            .auth-form-card {
+                padding: 2.25rem 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <!-- Left Panel: Glowing HUD Graph -->
+        <div class="auth-hero-panel">
+            <div class="hud-line"></div>
+            <div class="hero-graphics">
+                <div class="glowing-shield">
+                    <i data-lucide="shield" style="width: 44px; height: 44px; stroke-width: 1.5;"></i>
+                </div>
+                <h1 class="hero-title">PPE Compliance <span>Sentry</span></h1>
+                <p class="hero-subtitle">
+                    Real-time computer vision monitoring system leveraging deep learning models to identify worksite safety compliance and detect anomalies.
+                </p>
+                <div class="visual-stats">
+                    <div class="stat-box">
+                        <h4>YOLOv8</h4>
+                        <p>Model Engine</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4>14</h4>
+                        <p>Class Targets</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4>< 50ms</h4>
+                        <p>Inference Time</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Elegant Glassmorphic Login Form -->
+        <div class="auth-form-panel">
+            <div class="auth-form-card">
+                <div class="auth-form-header">
+                    <h2 class="auth-form-title">Welcome Back</h2>
+                    <p class="auth-form-desc">Sign in to access your safety dashboard</p>
+                </div>
+
+                <!-- Error Alert Banner -->
+                <div class="auth-error-alert" id="auth-error-alert">
+                    <i data-lucide="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+                    <span id="error-message">Invalid email address or password.</span>
+                </div>
+
+                <!-- Login Form -->
+                <form id="login-form">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label class="form-label" for="login-email" style="margin-bottom: 0.35rem; display: block; font-size: 0.85rem; font-weight: 500;">Email Address</label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="email" 
+                                id="login-email" 
+                                class="premium-input" 
+                                placeholder="name@company.com" 
+                                required 
+                                autocomplete="email"
+                            >
+                            <i data-lucide="mail" class="input-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 1.25rem;">
+                        <label class="form-label" for="login-password" style="margin-bottom: 0.35rem; display: block; font-size: 0.85rem; font-weight: 500;">Password</label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="password" 
+                                id="login-password" 
+                                class="premium-input" 
+                                placeholder="••••••••" 
+                                required 
+                                autocomplete="current-password"
+                            >
+                            <i data-lucide="lock" class="input-icon"></i>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="premium-button">
+                        <i data-lucide="log-in" style="width: 18px; height: 18px;"></i>
+                        <span>Sign In</span>
+                    </button>
+                </form>
+
+                <!-- Redirect Link -->
+                <div class="auth-footer-link" style="margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--text-muted);">
+                    Need access? Contact your administrator for account creation.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script integrations -->
+    <script src="js/supabase-db.js?v=3"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Render Lucide icons
+            lucide.createIcons();
+
+            const form = document.getElementById("login-form");
+            const alertBox = document.getElementById("auth-error-alert");
+            const errorMsg = document.getElementById("error-message");
+
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                
+                const email = document.getElementById("login-email").value.trim();
+                const password = document.getElementById("login-password").value;
+                const submitBtn = form.querySelector("button[type='submit']");
+
+                // Toggle loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<span class="spinner" style="width: 16px; height: 16px; border-width: 2px; border-color: white; margin-right: 0.5rem; display: inline-block; vertical-align: middle;"></span> Verifying...`;
+                alertBox.classList.remove("visible");
+
+                try {
+                    await signInUser(email, password);
+                    // On success, redirect to dashboard
+                    window.location.href = "index.html";
+                } catch (error) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<i data-lucide="log-in" style="width: 18px; height: 18px;"></i> <span>Sign In</span>`;
+                    lucide.createIcons();
+                    
+                    errorMsg.textContent = error.message || "An unexpected error occurred.";
+                    alertBox.classList.add("visible");
+                    alertBox.style.display = "flex";
+                }
+            };
+        });
+    </script>
+</body>
+</html>

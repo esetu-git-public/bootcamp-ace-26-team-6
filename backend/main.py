@@ -3,15 +3,17 @@
 import base64
 from collections import Counter
 from datetime import datetime
+from pathlib import Path
 
 import cv2
 import httpx
 import numpy as np
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, field_validator
 
-from backend.auth import get_current_user, router as auth_router
+from backend.auth import get_current_user, get_current_user_from_token, router as auth_router
 from backend.db import insert, select, update, delete
 from backend.detector import annotate, detect
 from backend.stream import camera_stream_response
@@ -34,12 +36,32 @@ app.include_router(auth_router)
 class CameraCreate(BaseModel):
     name: str
     stream_url: str
+    zone: str | None = None
+
+    @field_validator("stream_url")
+    @classmethod
+    def validate_stream_url(cls, v: str) -> str:
+        v = v.strip()
+        if not (v.startswith("http://") or v.startswith("https://") or v.startswith("rtsp://")):
+            raise ValueError("stream_url must start with http://, https://, or rtsp://")
+        return v
 
 
 class CameraUpdate(BaseModel):
     name: str | None = None
     stream_url: str | None = None
+    zone: str | None = None
     is_active: bool | None = None
+
+    @field_validator("stream_url")
+    @classmethod
+    def validate_stream_url(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not (v.startswith("http://") or v.startswith("https://") or v.startswith("rtsp://")):
+            raise ValueError("stream_url must start with http://, https://, or rtsp://")
+        return v
 
 
 class DetectionCreate(BaseModel):
@@ -215,6 +237,7 @@ def create_camera(body: CameraCreate, user=Depends(get_current_user)):
             "user_id": user.id,
             "name": body.name,
             "stream_url": body.stream_url,
+            "zone": body.zone,
         })
         return cam[0]
     except Exception as e:
@@ -243,7 +266,7 @@ def delete_camera(camera_id: str, user=Depends(get_current_user)):
 
 
 @app.get("/camera/{camera_id}/stream")
-def camera_stream(camera_id: str, user=Depends(get_current_user)):
+def camera_stream(camera_id: str, user=Depends(get_current_user_from_token)):
     cams = select("cameras", {"id": f"eq.{camera_id}", "user_id": f"eq.{user.id}"})
     if not cams:
         raise HTTPException(404, "Camera not found")
@@ -323,11 +346,20 @@ def create_event(body: EventCreate, user=Depends(get_current_user)):
 def list_events(
     limit: int = 100,
     event_type: str | None = None,
+    date_start: str | None = Query(None, description="ISO date YYYY-MM-DD"),
+    date_end: str | None = Query(None, description="ISO date YYYY-MM-DD"),
     user=Depends(get_current_user),
 ):
     params = {"user_id": f"eq.{user.id}", "order": "detected_at.desc", "limit": str(limit)}
     if event_type and event_type != "All":
         params["event_type"] = f"eq.{event_type}"
+    if date_start:
+        params["detected_at"] = f"gte.{date_start}"
+    if date_end:
+        # Add 1 day to make end inclusive
+        from datetime import datetime, timedelta
+        end_dt = datetime.fromisoformat(date_end) + timedelta(days=1)
+        params["detected_at"] = f"lt.{end_dt.date().isoformat()}"
     return select("detection_events", params) or []
 
 
@@ -375,12 +407,14 @@ def get_stats(user=Depends(get_current_user)):
     counts = Counter(e["event_type"] for e in events)
     today = datetime.now().strftime("%Y-%m-%d")
     today_events = [e for e in events if e.get("detected_at", "").startswith(today)]
+    today_counts = Counter(e["event_type"] for e in today_events)
     return {
         "total": total,
         "compliant": counts.get("compliant", 0),
         "violation": counts.get("violation", 0),
         "fall": counts.get("fall", 0),
         "today": len(today_events),
+        "unresolved_today": today_counts.get("violation", 0) + today_counts.get("fall", 0),
     }
 
 
@@ -415,7 +449,7 @@ def get_settings(user=Depends(get_current_user)):
         insert("user_settings", {"user_id": user.id})
         s = _get_user_settings(user.id)
     return {
-        "violation_class_ids": s.get("violation_class_ids", [0, 6, 7, 8, 9, 10]),
+        "violation_class_ids": s.get("violation_class_ids", [6, 7, 8, 9, 10]),
         "alert_on_violation": s.get("alert_on_violation", True),
         "alert_on_fall": s.get("alert_on_fall", True),
     }
@@ -435,3 +469,9 @@ def update_settings(body: SettingsUpdate, user=Depends(get_current_user)):
         return r[0] if r else None
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+# Serve frontend static files (must be last to not interfere with API routes)
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
