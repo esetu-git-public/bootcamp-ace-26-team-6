@@ -4,11 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PPE Compliance - Violations Log</title>
-    <script src="js/auth-guard.js?v=3"></script>
-    <link rel="stylesheet" href="css/style.css?v=3">
+    <script src="js/auth-guard.js?v=12"></script>
+    <link rel="stylesheet" href="css/style.css?v=12">
 
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // Force clear stale sessions on page load
+        try {
+            const session = localStorage.getItem("ppe_session");
+            if (session) {
+                const parsed = JSON.parse(session);
+                const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                if (Date.now() >= payload.exp * 1000) {
+                    localStorage.removeItem("ppe_session");
+                }
+            }
+        } catch (e) {
+            localStorage.removeItem("ppe_session");
+        }
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -47,18 +62,7 @@
                             History
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="about.html">
-                            <i data-lucide="info"></i>
-                            About
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="admin.html">
-                            <i data-lucide="settings"></i>
-                            Admin Settings
-                        </a>
-                    </li>
+
                 </ul>
             </nav>
             
@@ -99,47 +103,26 @@
 
             <!-- Filters Bar Panel -->
             <section class="filter-bar" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) auto;">
-                <!-- Search query -->
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Search Log</label>
-                    <input type="text" id="search-input" class="form-input" placeholder="Search camera, area...">
-                </div>
-
-                <!-- Type filter -->
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Compliance Type</label>
+                    <label class="form-label">Event Type</label>
                     <select id="filter-type" class="form-select">
-                        <option value="all">All Logs</option>
+                        <option value="all">All Events</option>
                         <option value="Violations Only">Violations Only</option>
                         <option value="Compliant">Compliant Only</option>
-                        <option value="Missing Helmet">Missing Helmet</option>
-                        <option value="Missing Vest">Missing Vest</option>
-                        <option value="Missing Gloves">Missing Gloves</option>
                         <option value="Fall-Detected">Fall Detected</option>
                     </select>
                 </div>
 
-                <!-- Camera filter -->
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">CCTV Camera</label>
-                    <select id="filter-camera" class="form-select">
-                        <option value="all">All Cameras</option>
-                    </select>
-                </div>
-
-                <!-- Start Date -->
                 <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">Start Date</label>
                     <input type="date" id="filter-date-start" class="form-input">
                 </div>
 
-                <!-- End Date -->
                 <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">End Date</label>
                     <input type="date" id="filter-date-end" class="form-input">
                 </div>
 
-                <!-- Clear filters action -->
                 <button id="clear-filters-btn" class="btn btn-outline">
                     Clear Filters
                 </button>
@@ -152,9 +135,7 @@
                         <thead>
                             <tr>
                                 <th class="sortable sort-desc" data-column="created_at">Timestamp</th>
-                                <th class="sortable" data-column="type">Violation Type</th>
-                                <th class="sortable" data-column="camera">Camera</th>
-                                <th class="sortable" data-column="worker_area">Worker Area</th>
+                                <th class="sortable" data-column="type">Event Type</th>
                                 <th class="sortable" data-column="confidence">Confidence</th>
                                 <th class="sortable" data-column="status">Status</th>
                                 <th>Actions</th>
@@ -162,8 +143,8 @@
                         </thead>
                         <tbody id="logs-tbody">
                             <tr>
-                                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">
-                                    Loading violations log...
+                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                                    Loading events...
                                 </td>
                             </tr>
                         </tbody>
@@ -182,7 +163,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/supabase-db.js"></script>
+    <script src="js/supabase-db.js?v=15"></script>
     <script src="js/logs.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {

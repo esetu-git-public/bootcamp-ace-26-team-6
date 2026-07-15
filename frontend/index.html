@@ -4,17 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PPE Compliance - Live Monitoring Dashboard</title>
-    <script src="js/auth-guard.js?v=4"></script>
-    <link rel="stylesheet" href="css/style.css?v=4">
-
-    <!-- Chart.js for data visualization -->
+    <script src="js/auth-guard.js?v=12"></script>
+    <link rel="stylesheet" href="css/style.css?v=12">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        try {
+            const session = localStorage.getItem("ppe_session");
+            if (session) {
+                const parsed = JSON.parse(session);
+                const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                if (Date.now() >= payload.exp * 1000) {
+                    localStorage.removeItem("ppe_session");
+                }
+            }
+        } catch (e) {
+            localStorage.removeItem("ppe_session");
+        }
+    </script>
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="logo-container">
                 <div class="logo-icon">
@@ -22,8 +32,7 @@
                 </div>
                 <div class="logo-text">PPE Sentry</div>
             </div>
-            
-<nav>
+            <nav>
                 <ul class="nav-links">
                     <li class="nav-item active">
                         <a href="index.html">
@@ -49,28 +58,13 @@
                             History
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="about.html">
-                            <i data-lucide="info"></i>
-                            About
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="admin.html">
-                            <i data-lucide="settings"></i>
-                            Admin Settings
-                        </a>
-                    </li>
                 </ul>
             </nav>
-            
             <div class="sidebar-footer">
                 <div id="supabase-status-badge" class="supabase-badge" style="margin-bottom: 0.75rem;">
                     <span class="indicator"></span>
                     <span id="supabase-status-label">Checking...</span>
                 </div>
-                
-                <!-- User Profile Card -->
                 <div class="sidebar-profile">
                     <div class="profile-avatar" id="user-avatar">??</div>
                     <div class="profile-details">
@@ -83,16 +77,13 @@
             </div>
         </aside>
 
-        <!-- Main Content Panel -->
         <main class="main-content">
-            <!-- Header Bar -->
             <header class="header-bar">
                 <div class="page-title">
                     <h1>Live Compliance Monitor</h1>
-                    <p>Real-time safety camera feeds and incident response panel</p>
+                    <p>Real-time PPE detection via browser webcam</p>
                 </div>
                 <div class="header-actions">
-                    <!-- Audio Alarm Toggle Button -->
                     <button id="audio-alarm-btn" class="btn btn-outline">
                         <i data-lucide="volume-2"></i>
                         <span>Alarm Sound: ON</span>
@@ -100,9 +91,7 @@
                 </div>
             </header>
 
-            <!-- Metrics Cards Grid -->
             <section class="dashboard-grid">
-                <!-- Compliance Rate -->
                 <div class="stat-card primary" id="card-compliance">
                     <div class="stat-info">
                         <span class="stat-label">Compliance Rate</span>
@@ -112,8 +101,6 @@
                         <i data-lucide="percent" style="width: 24px; height: 24px;"></i>
                     </div>
                 </div>
-
-                <!-- Unresolved Alerts (Today) -->
                 <div class="stat-card violation" id="card-unresolved">
                     <div class="stat-info">
                         <span class="stat-label">Unresolved Alerts (Today)</span>
@@ -123,8 +110,6 @@
                         <i data-lucide="alert-triangle" style="width: 24px; height: 24px;"></i>
                     </div>
                 </div>
-
-                <!-- Active Alerts Today -->
                 <div class="stat-card warning" id="card-today-alerts">
                     <div class="stat-info">
                         <span class="stat-label">Alerts (Today)</span>
@@ -136,7 +121,55 @@
                 </div>
             </section>
 
-            <!-- Historical Trends chart (Bottom) -->
+            <div class="dashboard-layout" style="margin-bottom: 2rem;">
+                <section class="panel" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <div class="panel-header" style="margin-bottom: 0;">
+                        <h2 class="panel-title">
+                            <i data-lucide="video" style="color: var(--color-primary);"></i>
+                            Live Camera Feed
+                        </h2>
+                    </div>
+
+                    <div id="video-feed-player" class="video-feed-player">
+                        <div class="video-feed-overlay-hud">
+                            <div class="hud-item live-indicator">
+                                <span class="dot"></span>
+                                <span id="hud-live-label">OFF</span>
+                            </div>
+                            <div class="hud-item" id="hud-camera-name">Browser Webcam</div>
+                            <div class="hud-item" id="hud-timestamp">--/--/---- --:--:--</div>
+                        </div>
+                        <div class="scan-line"></div>
+                        <video id="live-video" autoplay playsinline muted style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:1;"></video>
+                        <canvas id="annotation-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:2;"></canvas>
+                    </div>
+
+                    <div style="display:flex;gap:0.75rem;justify-content:center;align-items:center;flex-wrap:wrap;">
+                        <button id="btn-start-cam" class="btn btn-primary" style="padding:0.75rem 2rem;font-size:1.1rem;" onclick="window.startCamera()">
+                            Start Camera
+                        </button>
+                        <button id="btn-stop-cam" class="btn btn-outline" style="display:none;" onclick="window.stopCamera()">
+                            Stop Camera
+                        </button>
+                        <span id="cam-hint" style="color:var(--text-muted);font-size:0.85rem;">Click Start Camera to begin PPE detection</span>
+                    </div>
+                </section>
+
+                <section class="panel" style="display: flex; flex-direction: column;">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i data-lucide="bell" style="color: var(--color-violation);"></i>
+                            Active Safety Violations
+                        </h2>
+                    </div>
+                    <div class="alerts-ticker-container" id="alerts-ticker">
+                        <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                            No active violations. System monitoring.
+                        </div>
+                    </div>
+                </section>
+            </div>
+
             <section class="panel">
                 <div class="panel-header">
                     <h2 class="panel-title">
@@ -151,12 +184,10 @@
         </main>
     </div>
 
-    <!-- Floating Toasts alerts wrapper -->
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- Scripts -->
-    <script src="js/supabase-db.js?v=4"></script>
-    <script src="js/dashboard.js?v=4"></script>
+    <script src="js/supabase-db.js?v=15"></script>
+    <script src="js/dashboard.js?v=12"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             lucide.createIcons();

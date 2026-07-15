@@ -507,11 +507,15 @@ body {
     100% { border-color: var(--color-violation); box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
 }
 
+.video-feed-player video,
 .video-feed-player img {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: 0.85;
+    z-index: 1;
 }
 
 .video-feed-player canvas {
@@ -521,7 +525,7 @@ body {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 5;
+    z-index: 2;
 }
 
 .video-feed-overlay-hud {
@@ -643,6 +647,77 @@ body {
 .alert-ticker-actions {
     display: flex;
     gap: 0.5rem;
+}
+
+.alert-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(239, 68, 68, 0.05);
+    border-left: 3px solid var(--color-violation);
+    border-radius: 6px;
+    animation: slideInAlert 0.3s ease-out;
+}
+
+.alert-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.alert-icon-violation {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+
+.alert-icon-fall {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+}
+
+.alert-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.85rem;
+}
+
+.alert-content strong {
+    font-weight: 600;
+}
+
+.alert-content span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.alert-ack-btn {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.alert-ack-btn:hover {
+    background: rgba(16, 185, 129, 0.3);
+}
+
+.alert-ack-badge {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.05);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
 }
 
 /* Floating Real-time Toast Notifications */

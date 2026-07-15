@@ -103,7 +103,7 @@ async function fetchStats() {
     }
 }
 
-async function fetchViolations({ type = "all", zone = "all", search = "", sortBy = "created_at", sortOrder = "desc", page = 1, limit = 10, camera = "all", site = "all", dateStart = "", dateEnd = "" } = {}) {
+async function fetchViolations({ type = "all", dateStart = "", dateEnd = "", sortBy = "created_at", sortOrder = "desc", page = 1, limit = 10, includeSnapshot = false } = {}) {
     try {
         let path = `/events?limit=200`;
         if (type !== "all") {
@@ -115,40 +115,40 @@ async function fetchViolations({ type = "all", zone = "all", search = "", sortBy
         if (dateEnd) path += `&date_end=${dateEnd}`;
         const events = await apiFetch(path);
 
-        let mapped = events.map(e => ({
-            id: e.id,
-            created_at: e.detected_at || e.created_at || new Date().toISOString(),
-            type: e.event_type === "compliant" ? "Compliant" : (e.event_type === "fall" ? "Fall-Detected" : "PPE Violation"),
-            camera: e.camera_id ? `CAM-${e.camera_id.substring(0, 4)}` : "Live Feed",
-            worker_area: "Processing Floor",
-            confidence: 0.92,
-            image_url: e.snapshot ? `data:image/jpeg;base64,${e.snapshot}` : null,
-            details: {
-                persons_detected: 1,
-                helmets_detected: e.event_type === "compliant" ? 1 : 0,
-                vests_detected: e.event_type === "compliant" ? 1 : 0
-            },
-            status: e.event_type === "compliant" ? "Resolved" : "Unresolved"
-        }));
+        const alerts = await fetchAlerts({ limit: 200 });
+        const alertMap = {};
+        alerts.forEach(a => { alertMap[a.event_id] = a; });
 
-        if (zone !== "all") {
-            mapped = mapped.filter(d => d.worker_area === zone);
-        }
-        if (search.trim() !== "") {
-            const queryText = search.toLowerCase();
-            mapped = mapped.filter(d =>
-                d.camera.toLowerCase().includes(queryText) ||
-                d.type.toLowerCase().includes(queryText)
-            );
+        let mapped = events.map(e => {
+            const alert = alertMap[e.id];
+            const isCompliant = e.event_type === "compliant";
+            const isFall = e.event_type === "fall";
+            const isViolation = e.event_type === "violation";
+            let status = "Compliant";
+            if (!isCompliant) {
+                status = (alert && alert.acknowledged) ? "Acknowledged" : "Active";
+            }
+            let label = e.label || (isCompliant ? "Compliant" : (isFall ? "Fall-Detected" : "PPE Violation"));
+            if (isCompliant) label = "Compliant";
+            return {
+                id: e.id,
+                created_at: e.detected_at || e.created_at || new Date().toISOString(),
+                type: label,
+                confidence: 0.92,
+                status: status,
+                is_compliant: isCompliant,
+                snapshot: (includeSnapshot && isViolation) ? (e.snapshot || null) : null,
+            };
+        });
+
+        if (sortBy === "created_at") {
+            mapped.sort((a, b) => sortOrder === "desc" ? new Date(b.created_at) - new Date(a.created_at) : new Date(a.created_at) - new Date(b.created_at));
         }
 
         const startIndex = (page - 1) * limit;
         const paginatedData = mapped.slice(startIndex, startIndex + limit);
 
-        return {
-            data: paginatedData,
-            totalCount: mapped.length
-        };
+        return { data: paginatedData, totalCount: mapped.length };
     } catch (e) {
         console.error("Fetch violations error:", e);
         return { data: [], totalCount: 0 };
@@ -184,17 +184,19 @@ async function addViolation(violationData) {
     }
 }
 
-async function updateViolationStatus(id, newStatus = "Resolved") {
-    // Backend uses alerts for acknowledgment
+async function updateViolationStatus(eventId, newStatus = "Acknowledged") {
     try {
         if (newStatus === "Acknowledged") {
-            await apiFetch(`/alerts/${id}/ack`, { method: "PATCH" });
+            const alerts = await fetchAlerts({ limit: 50 });
+            const alert = alerts.find(a => a.event_id === eventId);
+            if (alert) {
+                await acknowledgeAlert(alert.id);
+            }
         }
-        // For "Resolved", we could add a resolution endpoint, for now just return
-        return { id, status: newStatus };
+        return { id: eventId, status: newStatus };
     } catch (e) {
         console.error("Update violation status error:", e);
-        return { id, status: newStatus };
+        return { id: eventId, status: newStatus };
     }
 }
 
@@ -224,85 +226,7 @@ async function acknowledgeAlert(alertId) {
     }
 }
 
-// ----------------- CAMERAS API METHODS -----------------
-
-async function getCameras() {
-    try {
-        const cameras = await apiFetch("/cameras");
-        return cameras.map(c => ({
-            id: c.id,
-            name: c.name,
-            zone: c.zone || "Zone A",
-            status: c.is_active ? "Active" : "Inactive",
-            rules: ["helmet", "vest"],
-            stream_url: c.stream_url,
-            is_active: c.is_active
-        }));
-    } catch (e) {
-        console.error("Get cameras error:", e);
-        return [];
-    }
-}
-
-async function addCamera(camera) {
-    try {
-        const res = await apiFetch("/cameras", {
-            method: "POST",
-            body: JSON.stringify({
-                name: camera.name,
-                stream_url: camera.stream_url,
-                zone: camera.zone
-            })
-        });
-        return {
-            id: res.id,
-            name: res.name,
-            zone: camera.zone || res.zone,
-            status: "Active",
-            rules: camera.rules || [],
-            stream_url: res.stream_url,
-            is_active: res.is_active
-        };
-    } catch (e) {
-        console.error("Add camera error:", e);
-        throw e;
-    }
-}
-
-async function updateCamera(id, updatedFields) {
-    try {
-        const payload = {};
-        if (updatedFields.name) payload.name = updatedFields.name;
-        if (updatedFields.status) payload.is_active = updatedFields.status === "Active";
-        if (updatedFields.zone) payload.zone = updatedFields.zone;
-        const res = await apiFetch(`/cameras/${id}`, {
-            method: "PATCH",
-            body: JSON.stringify(payload)
-        });
-        return {
-            id: res.id,
-            name: res.name,
-            zone: updatedFields.zone || res.zone,
-            status: res.is_active ? "Active" : "Inactive",
-            rules: updatedFields.rules || [],
-            stream_url: res.stream_url,
-            is_active: res.is_active
-        };
-    } catch (e) {
-        console.error("Update camera error:", e);
-        throw e;
-    }
-}
-
-async function removeCamera(id) {
-    try {
-        await apiFetch(`/cameras/${id}`, { method: "DELETE" });
-        return true;
-    } catch (e) {
-        console.error("Remove camera error:", e);
-        throw e;
-    }
-}
+// ----------------- USER API METHODS -----------------
 
 async function getUsers() {
     try {
@@ -312,11 +236,6 @@ async function getUsers() {
         console.error("Get users error:", e);
         return [];
     }
-}
-
-async function updateUserRole(id, updatedFields) {
-    // Backend doesn't have user role update yet
-    return { id, ...updatedFields };
 }
 
 // ----------------- ADVANCED REPORT STATISTICS METHODS -----------------
@@ -329,9 +248,9 @@ async function fetchReportingData() {
 
         events.forEach(e => {
             if (e.event_type === "compliant") return;
-            const type = e.event_type === "fall" ? "Fall" : "PPE Violation";
+            const type = e.label || (e.event_type === "fall" ? "Fall" : "PPE Violation");
             violationsByType[type] = (violationsByType[type] || 0) + 1;
-            const cam = e.camera_id ? `CAM-${e.camera_id.substring(0, 4)}` : "Live Feed";
+            const cam = "Browser Webcam";
             violationsByCamera[cam] = (violationsByCamera[cam] || 0) + 1;
         });
 
@@ -406,13 +325,10 @@ async function signInUser(email, password) {
             password: password
         })
     });
-    // Determine role from email or default
-    const role = email.includes("jane.smith") ? "Safety Officer" : "Admin";
     const session = {
         name: res.username,
         email: res.username,
         access_token: res.access_token,
-        role: role
     };
     localStorage.setItem("ppe_session", JSON.stringify(session));
     return res;
@@ -439,14 +355,9 @@ function setupSidebarProfile() {
 
     const avatarEl = document.getElementById("user-avatar");
     const nameEl = document.getElementById("user-display-name");
-    const roleEl = document.getElementById("user-display-role");
     const logoutBtn = document.getElementById("logout-btn");
 
     if (nameEl) nameEl.textContent = session.name || session.email;
-    if (roleEl) {
-        roleEl.textContent = session.role;
-        roleEl.className = "profile-role-badge " + "role-" + (session.role || "").toLowerCase().replace(/\s+/g, '-');
-    }
     if (avatarEl) {
         const initials = (session.name || "??")
             .split(" ")

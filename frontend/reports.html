@@ -4,13 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PPE Compliance - Reports & Analysis</title>
-    <script src="js/auth-guard.js?v=3"></script>
-    <link rel="stylesheet" href="css/style.css?v=3">
+    <script src="js/auth-guard.js?v=12"></script>
+    <link rel="stylesheet" href="css/style.css?v=12">
 
     <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // Force clear stale sessions on page load
+        try {
+            const session = localStorage.getItem("ppe_session");
+            if (session) {
+                const parsed = JSON.parse(session);
+                const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                if (Date.now() >= payload.exp * 1000) {
+                    localStorage.removeItem("ppe_session");
+                }
+            }
+        } catch (e) {
+            localStorage.removeItem("ppe_session");
+        }
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -49,12 +64,7 @@
                             History
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a href="admin.html">
-                            <i data-lucide="settings"></i>
-                            Admin Settings
-                        </a>
-                    </li>
+
                 </ul>
             </nav>
             
@@ -121,11 +131,11 @@
 
                 <div class="stat-card primary">
                     <div class="stat-info">
-                        <span class="stat-label">Most Active Camera</span>
-                        <span class="stat-value" id="rep-top-camera" style="font-size: 1.5rem; line-height: 1.5;">--</span>
+                        <span class="stat-label">Total Events</span>
+                        <span class="stat-value" id="rep-total-events" style="font-size: 1.5rem; line-height: 1.5;">--</span>
                     </div>
                     <div class="stat-icon-wrapper">
-                        <i data-lucide="video" style="width: 24px; height: 24px;"></i>
+                        <i data-lucide="activity" style="width: 24px; height: 24px;"></i>
                     </div>
                 </div>
             </section>
@@ -158,38 +168,13 @@
                     </div>
                 </section>
 
-                <!-- Violations by Camera (Horizontal Bar) -->
-                <section class="panel">
-                    <div class="panel-header">
-                        <h2 class="panel-title">
-                            <i data-lucide="video" style="color: var(--color-violation);"></i>
-                            Violations by Camera
-                        </h2>
-                    </div>
-                    <div class="chart-container" style="height: 280px;">
-                        <canvas id="cameraViolationsChart"></canvas>
-                    </div>
-                </section>
             </div>
-
-            <!-- Violation Type Daily Trends (Stacked Bar) -->
-            <section class="panel">
-                <div class="panel-header">
-                    <h2 class="panel-title">
-                        <i data-lucide="bar-chart-2" style="color: var(--color-primary);"></i>
-                        7-Day Violation Type Trends
-                    </h2>
-                </div>
-                <div class="chart-container" style="height: 320px;">
-                    <canvas id="typeTrendsChart"></canvas>
-                </div>
-            </section>
         </main>
     </div>
 
     <!-- Scripts -->
-    <script src="js/supabase-db.js"></script>
-    <script src="js/reports.js"></script>
+    <script src="js/supabase-db.js?v=15"></script>
+    <script src="js/reports.js?v=15"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             lucide.createIcons();
