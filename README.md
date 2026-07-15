@@ -1,6 +1,6 @@
 # 🦺 PPE Compliance Detection System
 
-An AI-powered real-time PPE (Personal Protective Equipment) Compliance Detection System that monitors workers through live CCTV/video feeds using YOLOv8 object detection. The system identifies PPE compliance and violations, detects falls, stores detection events in Supabase Database, and provides a web dashboard for monitoring and reporting.
+An AI-powered real-time PPE (Personal Protective Equipment) Compliance Detection System that monitors workers through live CCTV/video feeds using YOLOv8 object detection. The system identifies PPE compliance and violations, detects falls, stores detection events in a Supabase database, and provides a web dashboard for monitoring and reporting.
 
 ---
 
@@ -23,8 +23,8 @@ An AI-powered real-time PPE (Personal Protective Equipment) Compliance Detection
 
 | Layer | Technology |
 |---|---|
-| Frontend | HTML, CSS, JavaScript (served via FastAPI) |
-| Backend | Python 3.10+, FastAPI |
+| Frontend | HTML, CSS, JavaScript |
+| Backend | Python 3.13, FastAPI |
 | AI/ML | YOLOv8, PyTorch, OpenCV |
 | Database | Supabase (PostgreSQL) |
 | Reporting | Plotly |
@@ -77,28 +77,61 @@ Manual PPE checks are slow, inconsistent, and can't cover every worker or camera
 ```
 bootcamp-ace-26-team-6/
 ├── backend/
-│   ├── __init__.py
+│   ├── auth.py
+│   ├── camera_manager.py
 │   ├── config.py
 │   ├── db.py
 │   ├── detector.py
+│   ├── __init__.py
 │   ├── main.py
-│   ├── stream.py
-│   ├── auth.py
 │   ├── .env          # Not tracked in git
 │   └── test/
+│       ├── conftest.py
+│       ├── __init__.py
+│       ├── test_auth.py
+│       ├── test_config.py
+│       ├── test_db.py
+│       ├── test_detector.py
+│       └── test_main.py
+├── frontend/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   ├── auth-guard.js
+│   │   ├── dashboard.js
+│   │   ├── history.js
+│   │   ├── logs.js
+│   │   ├── reports.js
+│   │   ├── settings.js
+│   │   └── supabase-db.js
+│   ├── index.html
+│   ├── login.html
+│   ├── history.html
+│   ├── logs.html
+│   ├── reports.html
+│   └── settings.html
 ├── models/
 │   ├── best.pt
-│   └── last.pt
+│   ├── last.pt
+│   └── modeltesting.ipynb
 ├── training/
 │   ├── ppe-compliance-model-train.ipynb
 │   └── results_summary.md
+├── docs/
+│   ├── devmvp.txt
+│   ├── MVP plan Team leader.pdf
+│   ├── PPE_Compliance_BRD.pdf
+│   ├── PPE Compliance Final Report.pdf
+│   ├── SPRINT_RECORD.md
+│   └── Team 2 BRD.pdf
+├── DBXSCHEMA.sql
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
 ├── run.sh        # Linux/macOS
 ├── runx.sh       # Windows
-├── pytest.ini
-├── DBXSTRUCTURE.TXT
+├── LICENSE
+├── SECURITY_NOTICE.md
 └── README.md
 ```
 
@@ -112,39 +145,20 @@ git clone <repository-url>
 cd bootcamp-ace-26-team-6
 ```
 
-### 2. Create and activate a virtual environment
-**Windows**
-```powershell
-python -m venv venv
-venv\Scripts\Activate.ps1
-```
+### 2. Configure environment variables
+Create a `.env` file in the `backend/` folder based on `.env.example`:
 
-**Linux / macOS**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure environment variables
-Create a `.env` file in the project root and add the required environment variables.
-
-Example:
 ```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key
-SUPABASE_ANON_KEY=your-anon-key
-JWT_SECRET=your-random-secret-key-at-least-32-chars
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_MINUTES=60
-MODEL_PATH=models/best.pt
+SUPABASE_URL=https://x.supabase.co
+SUPABASE_SERVICE_KEY=sb_secret
+SUPABASE_ANON_KEY=sb_publishable
+JWT_SECRET=change-me-to-a-random-secret-key-in-production
+JWT_ALGORITHM=AK475
+JWT_EXPIRE_MINUTES=46
 ```
 
-### 5. Run the application
+### 3. Run the application
+
 **Linux / macOS:**
 ```bash
 ./run.sh
@@ -160,16 +174,11 @@ Or manually:
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 6. Open the application
-Open your browser and navigate to:
-```
-http://localhost:8000
-```
+### 4. Open the application
 
-API documentation (Swagger UI):
-```
-http://localhost:8000/docs
-```
+Dashboard: `http://localhost:8000`
+
+API docs (Swagger UI): `http://localhost:8000/docs`
 
 ---
 
@@ -181,18 +190,21 @@ http://localhost:8000/docs
 | SUPABASE_SERVICE_KEY | Service role key (bypasses RLS) | Yes |
 | SUPABASE_ANON_KEY | Anonymous/public key | Yes |
 | JWT_SECRET | Secret for signing JWT tokens (32+ chars) | Yes |
-| JWT_ALGORITHM | JWT algorithm (default: HS256) | No |
-| JWT_EXPIRE_MINUTES | Access token expiry (default: 60) | No |
+| JWT_ALGORITHM | JWT algorithm | No |
+| JWT_EXPIRE_MINUTES | Access token expiry, in minutes | No |
 | MODEL_PATH | Path to YOLO model (default: models/best.pt) | No |
 
 ---
 
 ## Database Schema
 
-See `DBXSTRUCTURE.TXT` for the Supabase/PostgreSQL schema with tables:
-- `users` - Authentication
-- `cameras` - Camera configurations
-- `detection_events` - Detection event logs
-- `detections` - Individual detections per event
-- `alerts` - Generated alerts
-- `user_settings` - Per-user detection/alert settings
+Defined in `DBXSCHEMA.sql`. Tables:
+
+- **`users`** — `id`, `username` (unique), `password_hash`, `full_name`, `created_at`
+- **`cameras`** — `id`, `user_id` → `users`, `name`, `url`, `created_at`
+- **`detection_events`** — `id`, `user_id` → `users`, `camera_id` → `cameras`, `camera_name`, `event_type` (`compliant` / `violation` / `fall`), `snapshot`, `detected_at`
+- **`detections`** — `id`, `event_id` → `detection_events`, `class_id`, `class_name`, `confidence`, `bbox_x1/y1/x2/y2`, `is_violation`
+- **`alerts`** — `id`, `user_id` → `users`, `event_id` → `detection_events`, `alert_type` (`violation` / `fall`), `message`, `acknowledged`, `created_at`
+- **`user_settings`** — `id`, `user_id` → `users` (unique), `violation_class_ids` (default `{6,7,8,9,10}`), `alert_on_violation`, `alert_on_fall`, `created_at`, `updated_at`
+
+Foreign keys: `detection_events.user_id → users.id`, `detection_events.camera_id → cameras.id`, `detections.event_id → detection_events.id`, `alerts.user_id → users.id`, `alerts.event_id → detection_events.id`, `cameras.user_id → users.id`, `user_settings.user_id → users.id`.

@@ -2,10 +2,19 @@
 set -e
 cd "$(dirname "$0")"
 
-# Export env vars from .env so both backend and frontend can see them
-set -a; source backend/.env; set +a
+if [ ! -d "venv" ]; then
+    python -m venv venv
+fi
 
 source venv/Scripts/activate
+
+if [ -f "backend/requirements.txt" ]; then
+    pip install -r backend/requirements.txt
+elif [ -f "requirements.txt" ]; then
+    pip install -r requirements.txt
+fi
+
+set -a; source backend/.env; set +a
 
 echo "Starting backend on :8000 ..."
 uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload &
