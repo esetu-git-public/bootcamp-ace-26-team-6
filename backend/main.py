@@ -164,13 +164,23 @@ def list_events(
         event_ids = [e["id"] for e in events]
         ids_param = ",".join(event_ids)
         all_dets = select("detections", {"event_id": f"in.({ids_param})"}) or []
-        det_map = {}
-        for d in all_dets:
-            eid = d["event_id"]
-            if eid not in det_map:
-                det_map[eid] = d["class_name"]
         for e in events:
-            e["label"] = det_map.get(e["id"], e["event_type"])
+            eid = e["id"]
+            event_dets = [d for d in all_dets if d["event_id"] == eid]
+            label = e["event_type"]
+            if event_dets:
+                for d in event_dets:
+                    if d.get("is_violation", False):
+                        label = d["class_name"]
+                        break
+                else:
+                    for d in event_dets:
+                        if d.get("class_id") == 0:
+                            label = "Fall-Detected"
+                            break
+                    else:
+                        label = event_dets[0]["class_name"]
+            e["label"] = label
     return events
 
 
