@@ -86,6 +86,15 @@ function subscribeToNewViolations(callback) {
     startViolationPolling(callback, 10000);
 }
 
+async function fetchCameras() {
+    try {
+        return await apiFetch("/cameras/active");
+    } catch (e) {
+        console.error("Fetch cameras error:", e);
+        return [];
+    }
+}
+
 async function fetchStats() {
     try {
         const data = await apiFetch("/stats");
@@ -134,10 +143,12 @@ async function fetchViolations({ type = "all", dateStart = "", dateEnd = "", sor
                 id: e.id,
                 created_at: e.detected_at || e.created_at || new Date().toISOString(),
                 type: label,
-                confidence: 0.92,
+                confidence: e.confidence || 0.92,
                 status: status,
                 is_compliant: isCompliant,
                 snapshot: (includeSnapshot && isViolation) ? (e.snapshot || null) : null,
+                camera_id: e.camera_id || null,
+                camera_name: e.camera_name || null,
             };
         });
 
@@ -242,7 +253,7 @@ async function getUsers() {
 
 async function fetchReportingData() {
     try {
-        const events = await apiFetch("/events?limit=200");
+        const events = await apiFetch("/events?limit=500");
         const violationsByType = {};
         const violationsByCamera = {};
 
@@ -250,20 +261,50 @@ async function fetchReportingData() {
             if (e.event_type === "compliant") return;
             const type = e.label || (e.event_type === "fall" ? "Fall" : "PPE Violation");
             violationsByType[type] = (violationsByType[type] || 0) + 1;
-            const cam = "Browser Webcam";
+            const cam = e.camera_name || "Browser Webcam";
             violationsByCamera[cam] = (violationsByCamera[cam] || 0) + 1;
         });
 
-        // Compute daily trends from actual events
         const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         const dailyCounts = { compliant: Array(7).fill(0), violation: Array(7).fill(0), fall: Array(7).fill(0) };
 
         events.forEach(e => {
             const date = new Date(e.detected_at || e.created_at);
-            const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1; // Mon=0, Sun=6
+            const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
             if (e.event_type === "compliant") dailyCounts.compliant[dayIndex]++;
             else if (e.event_type === "violation") dailyCounts.violation[dayIndex]++;
             else if (e.event_type === "fall") dailyCounts.fall[dayIndex]++;
+        });
+
+        // Hourly trends (24h)
+        const hourlyLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
+        const hourlyCounts = Array(24).fill(0);
+        events.forEach(e => {
+            const date = new Date(e.detected_at || e.created_at);
+            const hour = date.getHours();
+            if (hour >= 0 && hour < 24) hourlyCounts[hour]++;
+        });
+
+        // 30-day daily compliance trend
+        const thirtyDayLabels = [];
+        const thirtyDay = { compliant: [], violation: [], fall: [] };
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            thirtyDayLabels.push(dateStr.slice(5));
+            thirtyDay.compliant.push(0);
+            thirtyDay.violation.push(0);
+            thirtyDay.fall.push(0);
+        }
+        events.forEach(e => {
+            const dateStr = (e.detected_at || e.created_at || "").split('T')[0];
+            const idx = thirtyDayLabels.indexOf(dateStr.slice(5));
+            if (idx !== -1) {
+                if (e.event_type === "compliant") thirtyDay.compliant[idx]++;
+                else if (e.event_type === "violation") thirtyDay.violation[idx]++;
+                else if (e.event_type === "fall") thirtyDay.fall[idx]++;
+            }
         });
 
         return {
@@ -277,17 +318,27 @@ async function fetchReportingData() {
             },
             trends: {
                 labels: labels,
-                helmet: dailyCounts.violation, // Fallback - would need per-class detection data
+                helmet: dailyCounts.violation,
                 vest: dailyCounts.violation,
                 gloves: dailyCounts.violation,
                 compliant: dailyCounts.compliant,
                 violations: dailyCounts.violation,
                 falls: dailyCounts.fall
+            },
+            hourly: {
+                labels: hourlyLabels,
+                counts: hourlyCounts
+            },
+            thirtyDay: {
+                labels: thirtyDayLabels,
+                compliant: thirtyDay.compliant,
+                violation: thirtyDay.violation,
+                fall: thirtyDay.fall
             }
         };
     } catch (e) {
         console.error("Fetch reporting data error:", e);
-        return { types: { labels: [], counts: [] }, cameras: { labels: [], counts: [] }, trends: { labels: [], helmet: [], vest: [], gloves: [], compliant: [], violations: [], falls: [] } };
+        return { types: { labels: [], counts: [] }, cameras: { labels: [], counts: [] }, trends: { labels: [], helmet: [], vest: [], gloves: [], compliant: [], violations: [], falls: [] }, hourly: { labels: [], counts: [] }, thirtyDay: { labels: [], compliant: [], violation: [], fall: [] } };
     }
 }
 

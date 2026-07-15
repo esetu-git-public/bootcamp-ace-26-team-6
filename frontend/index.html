@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PPE Compliance - Live Monitoring Dashboard</title>
     <script src="js/auth-guard.js?v=12"></script>
-    <link rel="stylesheet" href="css/style.css?v=12">
+    <link rel="stylesheet" href="css/style.css?v=16">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
@@ -56,6 +56,12 @@
                         <a href="history.html">
                             <i data-lucide="calendar"></i>
                             History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="settings.html">
+                            <i data-lucide="settings"></i>
+                            Cameras
                         </a>
                     </li>
                 </ul>
@@ -136,7 +142,6 @@
                                 <span class="dot"></span>
                                 <span id="hud-live-label">OFF</span>
                             </div>
-                            <div class="hud-item" id="hud-camera-name">Browser Webcam</div>
                             <div class="hud-item" id="hud-timestamp">--/--/---- --:--:--</div>
                         </div>
                         <div class="scan-line"></div>
@@ -145,6 +150,9 @@
                     </div>
 
                     <div style="display:flex;gap:0.75rem;justify-content:center;align-items:center;flex-wrap:wrap;">
+                        <select id="hud-camera-select" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;padding:0.6rem 1rem;font-family:'Outfit',sans-serif;font-size:0.9rem;cursor:pointer;outline:none;min-width:160px;">
+                            <option value="" style="background:var(--bg-card);color:var(--text-primary);">Browser Webcam</option>
+                        </select>
                         <button id="btn-start-cam" class="btn btn-primary" style="padding:0.75rem 2rem;font-size:1.1rem;" onclick="window.startCamera()">
                             Start Camera
                         </button>
@@ -186,7 +194,7 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="js/supabase-db.js?v=15"></script>
+    <script src="js/supabase-db.js?v=17"></script>
     <script src="js/dashboard.js?v=16"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {

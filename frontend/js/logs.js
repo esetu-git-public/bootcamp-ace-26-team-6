@@ -22,7 +22,7 @@ function formatFullDateTime(dateString) {
 }
 
 async function loadEvents() {
-    logsTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;"><div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;"><span class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span><span>Loading...</span></div></td></tr>`;
+    logsTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem;"><div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;"><span class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span><span>Loading...</span></div></td></tr>`;
 
     const type = filterType.value;
     const dateStart = filterDateStart.value;
@@ -31,7 +31,7 @@ async function loadEvents() {
     const { data: logs, totalCount } = await fetchViolations({ type, dateStart, dateEnd, sortBy, sortOrder, page: currentPage, limit, includeSnapshot: true });
 
     if (!logs || logs.length === 0) {
-        logsTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 4rem;"><div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem;"><i data-lucide="folder-open" style="width: 40px; height: 40px; color: var(--text-muted);"></i><span style="font-weight: 500; font-size: 1rem;">No matching events found</span></div></td></tr>`;
+        logsTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 4rem;"><div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem;"><i data-lucide="folder-open" style="width: 40px; height: 40px; color: var(--text-muted);"></i><span style="font-weight: 500; font-size: 1rem;">No matching events found</span></div></td></tr>`;
         paginationInfo.textContent = "Showing 0 to 0 of 0 entries";
         paginationControls.innerHTML = "";
         lucide.createIcons();
@@ -57,6 +57,11 @@ async function loadEvents() {
             iconName = "user-minus";
         }
         typeCell.innerHTML = `<span class="status-badge ${badgeClass}"><i data-lucide="${iconName}" style="width: 14px; height: 14px;"></i> ${label}</span>`;
+
+        const camCell = document.createElement("td");
+        camCell.textContent = log.camera_name || "Browser Webcam";
+        camCell.style.fontSize = "0.85rem";
+        camCell.style.color = "var(--text-muted)";
 
         const confCell = document.createElement("td");
         confCell.textContent = `${Math.round(log.confidence * 100)}%`;
@@ -124,6 +129,7 @@ async function loadEvents() {
 
         tr.appendChild(dateCell);
         tr.appendChild(typeCell);
+        tr.appendChild(camCell);
         tr.appendChild(confCell);
         tr.appendChild(statusCell);
         tr.appendChild(actionCell);
@@ -223,10 +229,10 @@ exportCsvBtn.addEventListener("click", async () => {
         return;
     }
 
-    const csvHeaders = ["Log ID", "Timestamp", "Event Type", "Confidence", "Status"];
+    const csvHeaders = ["Log ID", "Timestamp", "Event Type", "Camera", "Confidence", "Status"];
     const csvRows = [csvHeaders.join(",")];
     allLogs.forEach(row => {
-        csvRows.push([row.id, new Date(row.created_at).toISOString(), `"${row.type}"`, `${Math.round(row.confidence * 100)}%`, row.status].join(","));
+        csvRows.push([row.id, new Date(row.created_at).toISOString(), `"${row.type}"`, row.camera_name || "Browser Webcam", `${Math.round(row.confidence * 100)}%`, row.status].join(","));
     });
     const csvContent = csvRows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

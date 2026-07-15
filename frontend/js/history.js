@@ -28,7 +28,7 @@ async function loadHistory() {
     const date = historyDateInput.value;
     if (!date) return;
 
-    historyTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;"><div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;"><span class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span><span>Loading...</span></div></td></tr>`;
+    historyTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem;"><div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;"><span class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span><span>Loading...</span></div></td></tr>`;
 
     const { data: events, totalCount } = await fetchViolations({
         type: "all", dateStart: date, dateEnd: date,
@@ -37,7 +37,7 @@ async function loadHistory() {
     });
 
     if (!events || events.length === 0) {
-        historyTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 4rem;"><div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem;"><i data-lucide="calendar-x" style="width: 40px; height: 40px; color: var(--text-muted);"></i><span style="font-weight: 500; font-size: 1rem;">No records for this date</span></div></td></tr>`;
+        historyTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 4rem;"><div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem;"><i data-lucide="calendar-x" style="width: 40px; height: 40px; color: var(--text-muted);"></i><span style="font-weight: 500; font-size: 1rem;">No records for this date</span></div></td></tr>`;
         paginationInfo.textContent = "Showing 0 to 0 of 0 entries";
         paginationControls.innerHTML = "";
         lucide.createIcons();
@@ -66,6 +66,11 @@ async function loadHistory() {
         }
         const eventTypeDisplay = event.is_compliant ? "Compliant" : event.type;
         typeCell.innerHTML = `<span class="status-badge ${badgeClass}"><i data-lucide="${iconName}" style="width: 14px; height: 14px;"></i> ${eventTypeDisplay}</span>`;
+
+        const camCell = document.createElement("td");
+        camCell.textContent = event.camera_name || "Browser Webcam";
+        camCell.style.fontSize = "0.85rem";
+        camCell.style.color = "var(--text-muted)";
 
         const confCell = document.createElement("td");
         confCell.textContent = `${Math.round(event.confidence * 100)}%`;
@@ -100,6 +105,7 @@ async function loadHistory() {
 
         tr.appendChild(timeCell);
         tr.appendChild(typeCell);
+        tr.appendChild(camCell);
         tr.appendChild(confCell);
         tr.appendChild(statusCell);
         tr.appendChild(actionCell);
@@ -195,10 +201,10 @@ exportCsvBtn.addEventListener("click", async () => {
     try {
         const { data: allEvents } = await fetchViolations({ type: "all", dateStart: date, dateEnd: date, sortBy: historySortBy, sortOrder: historySortOrder, page: 1, limit: 1000 });
         if (!allEvents || allEvents.length === 0) { alert("No records found."); return; }
-        const csvHeaders = ["Event ID", "Timestamp", "Event Type", "Confidence", "Status"];
+        const csvHeaders = ["Event ID", "Timestamp", "Event Type", "Camera", "Confidence", "Status"];
         const csvRows = [csvHeaders.join(",")];
         allEvents.forEach(row => {
-            csvRows.push([row.id, new Date(row.created_at).toISOString(), `"${row.type}"`, `${Math.round(row.confidence * 100)}%`, row.status].join(","));
+            csvRows.push([row.id, new Date(row.created_at).toISOString(), `"${row.type}"`, row.camera_name || "Browser Webcam", `${Math.round(row.confidence * 100)}%`, row.status].join(","));
         });
         const csvContent = csvRows.join("\n");
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

@@ -13,8 +13,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend.auth import get_current_user, router as auth_router
-from backend.db import insert, select, update
+from backend.db import insert, select, update, delete as db_delete
 from backend.detector import annotate, detect
+from backend.camera_manager import get_frame, start_camera, stop_camera, is_active, stop_all
 
 app = FastAPI(title="PPE Compliance API", version="1.0")
 
@@ -39,7 +40,19 @@ class DetectionCreate(BaseModel):
 class EventCreate(BaseModel):
     event_type: str
     snapshot: str | None = None
+    camera_id: str | None = None
+    camera_name: str | None = None
     detections: list[DetectionCreate] = []
+
+
+class CameraCreate(BaseModel):
+    name: str
+    url: str
+
+
+class CameraUpdate(BaseModel):
+    name: str | None = None
+    url: str | None = None
 
 
 class SettingsUpdate(BaseModel):
@@ -69,12 +82,20 @@ def auth_me(user=Depends(get_current_user)):
 
 @app.post("/detect")
 async def detect_endpoint(
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),
+    camera_id: str = Query(None),
     user=Depends(get_current_user),
 ):
-    contents = await file.read()
-    nparr = np.frombuffer(contents, np.uint8)
-    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if file:
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    elif camera_id:
+        frame = get_frame(camera_id)
+        if frame is None:
+            raise HTTPException(400, "Camera not active or no frame available")
+    else:
+        raise HTTPException(400, "Provide either a file or camera_id")
 
     settings = _get_user_settings(user.id)
     vids = settings.get("violation_class_ids")
@@ -86,7 +107,12 @@ async def detect_endpoint(
     _, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
     annotated_b64 = base64.b64encode(buffer).decode()
 
-    return {**result, "annotated_image": annotated_b64}
+    resp = {**result, "annotated_image": annotated_b64}
+    if camera_id:
+        cam = select("cameras", {"id": f"eq.{camera_id}", "limit": "1"})
+        resp["camera_id"] = camera_id
+        resp["camera_name"] = cam[0]["name"] if cam else None
+    return resp
 
 
 @app.post("/events")
@@ -96,6 +122,8 @@ def create_event(body: EventCreate, user=Depends(get_current_user)):
             "user_id": user.id,
             "event_type": body.event_type,
             "snapshot": body.snapshot,
+            "camera_id": body.camera_id,
+            "camera_name": body.camera_name,
         }
         ev = insert("detection_events", event_row)
         if not ev:
@@ -168,8 +196,12 @@ def list_events(
             eid = e["id"]
             event_dets = [d for d in all_dets if d["event_id"] == eid]
             label = e["event_type"]
+            confidence = 0.0
             if event_dets:
                 for d in event_dets:
+                    conf = float(d.get("confidence", 0))
+                    if conf > confidence:
+                        confidence = conf
                     if d.get("is_violation", False):
                         label = d["class_name"]
                         break
@@ -181,6 +213,7 @@ def list_events(
                     else:
                         label = event_dets[0]["class_name"]
             e["label"] = label
+            e["confidence"] = round(confidence, 3)
     return events
 
 
@@ -259,6 +292,67 @@ def ack_alert(alert_id: str, user=Depends(get_current_user)):
         raise HTTPException(400, str(e))
 
 
+@app.get("/cameras")
+def list_cameras(user=Depends(get_current_user)):
+    return select("cameras", {"user_id": f"eq.{user.id}", "order": "created_at.desc"}) or []
+
+
+@app.post("/cameras")
+def create_camera(body: CameraCreate, user=Depends(get_current_user)):
+    row = {"user_id": user.id, "name": body.name, "url": body.url}
+    r = insert("cameras", row)
+    if not r:
+        raise HTTPException(500, "Failed to create camera")
+    return r[0]
+
+
+@app.put("/cameras/{camera_id}")
+def update_camera(camera_id: str, body: CameraUpdate, user=Depends(get_current_user)):
+    existing = select("cameras", {"id": f"eq.{camera_id}", "user_id": f"eq.{user.id}"})
+    if not existing:
+        raise HTTPException(404, "Camera not found")
+    data = body.model_dump(exclude_none=True)
+    if not data:
+        raise HTTPException(400, "No fields to update")
+    stop_camera(camera_id)
+    r = update("cameras", data, "id", camera_id)
+    return r[0] if r else None
+
+
+@app.delete("/cameras/{camera_id}")
+def delete_camera(camera_id: str, user=Depends(get_current_user)):
+    existing = select("cameras", {"id": f"eq.{camera_id}", "user_id": f"eq.{user.id}"})
+    if not existing:
+        raise HTTPException(404, "Camera not found")
+    stop_camera(camera_id)
+    db_delete("cameras", "id", camera_id)
+    return {"ok": True}
+
+
+@app.post("/cameras/{camera_id}/start")
+def start_camera_stream(camera_id: str, user=Depends(get_current_user)):
+    cam = select("cameras", {"id": f"eq.{camera_id}", "user_id": f"eq.{user.id}"})
+    if not cam:
+        raise HTTPException(404, "Camera not found")
+    try:
+        start_camera(camera_id, cam[0]["url"])
+        return {"ok": True, "camera_id": camera_id}
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/cameras/{camera_id}/stop")
+def stop_camera_stream(camera_id: str, user=Depends(get_current_user)):
+    stop_camera(camera_id)
+    return {"ok": True}
+
+
+@app.get("/cameras/active")
+def active_cameras(user=Depends(get_current_user)):
+    all_cams = select("cameras", {"user_id": f"eq.{user.id}"}) or []
+    return [{"id": c["id"], "name": c["name"], "url": c["url"], "active": is_active(c["id"])} for c in all_cams]
+
+
 @app.get("/settings")
 def get_settings(user=Depends(get_current_user)):
     s = _get_user_settings(user.id)
@@ -291,3 +385,8 @@ def update_settings(body: SettingsUpdate, user=Depends(get_current_user)):
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+
+
+@app.on_event("shutdown")
+def shutdown():
+    stop_all()
