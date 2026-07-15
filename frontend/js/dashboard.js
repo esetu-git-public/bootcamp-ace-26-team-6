@@ -127,6 +127,11 @@ window.startCamera = function() {
 
     ctx = canvasEl.getContext("2d");
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Camera requires a secure context (HTTPS or localhost).\nOn Chromium browsers, use http://localhost:8000 instead of the IP address.");
+        return;
+    }
+
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false })
         .then(function(stream) {
             videoStream = stream;

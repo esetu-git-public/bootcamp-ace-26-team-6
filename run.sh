@@ -16,6 +16,7 @@ trap "kill $BACKEND_PID 2>/dev/null; exit" INT TERM
 echo ""
 echo "  Backend:  http://localhost:8000"
 echo "  Swagger:  http://localhost:8000/docs"
+echo "  ⚠ Chromium: use http://localhost:8000 (IP address won't work for camera)"
 echo ""
 
 wait
