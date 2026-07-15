@@ -1,0 +1,69 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  username text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
+  full_name text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT users_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.detection_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  event_type text NOT NULL CHECK (event_type = ANY (ARRAY['compliant'::text, 'violation'::text, 'fall'::text])),
+  detected_at timestamp with time zone DEFAULT now(),
+  snapshot text,
+  camera_id uuid,
+  camera_name text,
+  CONSTRAINT detection_events_pkey PRIMARY KEY (id),
+  CONSTRAINT detection_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT detection_events_camera_id_fkey FOREIGN KEY (camera_id) REFERENCES public.cameras(id)
+);
+CREATE TABLE public.detections (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  event_id uuid NOT NULL,
+  class_id integer NOT NULL,
+  class_name text NOT NULL,
+  confidence double precision NOT NULL,
+  bbox_x1 double precision NOT NULL,
+  bbox_y1 double precision NOT NULL,
+  bbox_x2 double precision NOT NULL,
+  bbox_y2 double precision NOT NULL,
+  is_violation boolean DEFAULT false,
+  CONSTRAINT detections_pkey PRIMARY KEY (id),
+  CONSTRAINT detections_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.detection_events(id)
+);
+CREATE TABLE public.alerts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  event_id uuid,
+  alert_type text NOT NULL CHECK (alert_type = ANY (ARRAY['violation'::text, 'fall'::text])),
+  message text,
+  acknowledged boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT alerts_pkey PRIMARY KEY (id),
+  CONSTRAINT alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT alerts_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.detection_events(id)
+);
+CREATE TABLE public.user_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  violation_class_ids ARRAY DEFAULT '{6,7,8,9,10}'::integer[],
+  alert_on_violation boolean DEFAULT true,
+  alert_on_fall boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.cameras (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  name text NOT NULL,
+  url text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT cameras_pkey PRIMARY KEY (id),
+  CONSTRAINT cameras_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
